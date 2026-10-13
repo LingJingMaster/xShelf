@@ -72,6 +72,22 @@ test("reads current user core/avatar fields and tweet media", () => {
   assert.equal(result.rows[0].links[0].url, "https://t.co/1EGqlEXEwS");
 });
 
+test("reads current X media entities and link card images", () => {
+  const payload = timeline({ tweet_results: { result: {
+    rest_id: "100",
+    core: { user_results: { result: { rest_id: "8", core: { name: "Ada", screen_name: "ada" } } } },
+    legacy: { full_text: "Picture https://t.co/KDzfiholey", created_at: "Tue Jan 02 00:00:00 +0000 2024" },
+    media_entities2: [{ type: "photo", media_url_https: "https://pbs.twimg.com/media/current.jpg" }],
+    card: { legacy: { binding_values: [
+      { key: "summary_photo_image_small", value: { string_value: "https://pbs.twimg.com/card_img/small.jpg" } },
+      { key: "summary_photo_image_large", value: { string_value: "https://pbs.twimg.com/card_img/large.jpg" } }
+    ] } }
+  } } });
+  const result = parseTimelineResponse(payload, "bookmark");
+  assert.equal(result.rows[0].media[0].url, "https://pbs.twimg.com/media/current.jpg");
+  assert.equal(result.rows[0].media[1].url, "https://pbs.twimg.com/card_img/large.jpg");
+});
+
 test("normalizes relationship timelines into users", () => {
   const payload = timeline({ user_results: { result: {
     __typename: "User", rest_id: "7", legacy: {

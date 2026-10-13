@@ -248,7 +248,7 @@ async function fetchImageData(value) {
 
 async function resolveLinkPreview(value) {
   if (!isAllowedPreviewUrl(value)) throw new Error("Only t.co and X links can be previewed.");
-  const response = await fetch(value, { redirect: "follow", credentials: "omit" });
+  const response = await fetch(value, { redirect: "follow", credentials: "include" });
   if (!response.ok) throw new Error("Preview page returned HTTP " + response.status + ".");
   if (!isAllowedPreviewUrl(response.url)) throw new Error("Preview redirected outside X.");
   const contentType = response.headers.get("content-type") || "";

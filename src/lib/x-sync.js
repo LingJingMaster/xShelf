@@ -59,14 +59,30 @@ function unwrapMedia(item) {
   return item?.media_results?.result || item?.result || item;
 }
 
+function cardMedia(tweet) {
+  const bindings = tweet?.card?.legacy?.binding_values || [];
+  return bindings.flatMap(binding => {
+    const key = binding?.key || "";
+    const value = binding?.value?.string_value || "";
+    if (!/image|photo|thumbnail/i.test(key)) return [];
+    if (!/^https:\/\/(?:pbs\.twimg\.com|video\.twimg\.com)\//.test(value)) return [];
+    return [{ type: "photo", media_url_https: value, ext_alt_text: key, rank: /large|original/i.test(key) ? 1 : 0 }];
+  }).sort((a, b) => b.rank - a.rank);
+}
+
 function extractMedia(tweet, legacy) {
+  const quoted = tweet?.quoted_status_result?.result || legacy?.retweeted_status_result?.result;
   const sources = [
     legacy?.extended_entities?.media,
     legacy?.entities?.media,
     tweet?.extended_entities?.media,
     tweet?.entities?.media,
+    tweet?.media_entities2,
+    quoted?.media_entities2,
+    quoted?.legacy?.extended_entities?.media,
     tweet?.media?.all,
-    tweet?.media?.media_items
+    tweet?.media?.media_items,
+    cardMedia(tweet)
   ];
   const seen = new Set();
   const rows = [];

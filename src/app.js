@@ -5,7 +5,7 @@ import { parseTimelineResponse } from "./lib/x-sync.js";
 const $ = selector => document.querySelector(selector);
 const CATEGORIES = {
   bookmark: { label: "书签", singular: "书签", store: "posts", openUrl: "https://x.com/i/bookmarks", instruction: "打开 X 书签页" },
-  like: { label: "喜欢", singular: "喜欢", store: "posts", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“喜欢”标签" },
+  like: { label: "喜欢", singular: "喜欢", store: "posts", openUrl: "https://x.com/i/history/likes", instruction: "打开 X 的喜欢历史页" },
   post: { label: "推文", singular: "推文", store: "posts", syncCategory: "post", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“回复”标签" },
   reply: { label: "回复", singular: "回复", store: "posts", syncCategory: "post", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“回复”标签" },
   following: { label: "正在关注", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“正在关注”" },
@@ -126,7 +126,10 @@ function makeAvatar(post) {
   const avatar = element("div", { className: "avatar" });
   if (post.avatarUrl) {
     const image = element("img", { src: post.avatarUrl, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
-    image.addEventListener("error", () => image.remove());
+    image.addEventListener("error", () => {
+      image.remove();
+      avatar.textContent = (post.authorName || "?").slice(0, 1);
+    });
     avatar.append(image);
   } else {
     avatar.textContent = (post.authorName || "?").slice(0, 1);
@@ -179,9 +182,9 @@ function makeCard(row) {
   const children = [author];
   if (state.view === "gallery" && row.media?.length) {
     const media = row.media[0];
-    children.push(element("a", { className: "media-preview", href: row.url || media.url, target: "_blank", rel: "noreferrer" }, [
-      element("img", { src: media.url, alt: "", loading: "lazy", referrerpolicy: "no-referrer" })
-    ]));
+    const image = element("img", { src: media.url, alt: media.alt || "", loading: "lazy", referrerpolicy: "no-referrer" });
+    image.addEventListener("error", () => image.closest(".media-preview")?.classList.add("media-error"));
+    children.push(element("a", { className: "media-preview", href: row.url || media.url, target: "_blank", rel: "noreferrer" }, [image]));
   }
   children.push(textLink, foot);
   return element("article", { className: "bookmark-card" }, children);

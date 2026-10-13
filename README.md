@@ -11,6 +11,8 @@ analytics SDK, payment system, or remote xShelf server.
 - Incrementally sync bookmarks, likes, posts/replies, following, followers, and
   blocked accounts
 - Keep the same post as separate bookmark and like records
+- Read both legacy and current X identity/media response fields
+- Render avatars from `pbs.twimg.com` and media from X image/video domains
 - Search phrases, `and`, `or`, and `*` wildcards
 - Filter posts by folder, date, content type, and post type
 - Search user names, handles, and descriptions
@@ -30,9 +32,9 @@ shape. Export and back up your data regularly.
    unpacked** and select this repository.
 3. Open xShelf from its toolbar icon.
 4. Select a category. If it is not connected yet, follow the button to open the
-   matching X page. For likes, posts, following, and followers, navigate to that
-   tab on your own profile. Once the X list has loaded, return to xShelf and
-   click sync again.
+   matching X page. Likes opens `https://x.com/i/history/likes` directly. For
+   posts, following, and followers, navigate to the indicated tab on your own
+   profile. Once the X list has loaded, return to xShelf and click sync again.
 
 No build step is required. Run `npm test` for parser tests and `npm run package`
 to create `dist/xshelf.zip`.

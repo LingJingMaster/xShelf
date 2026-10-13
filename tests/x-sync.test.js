@@ -30,6 +30,36 @@ test("keeps likes separate from copies of the same bookmarked tweet", () => {
   assert.equal(result.rows[0].category, "like");
 });
 
+test("reads current user core/avatar fields and tweet media", () => {
+  const payload = timeline({ tweet_results: { result: {
+    __typename: "TweetWithVisibilityResults",
+    tweet: {
+      rest_id: "99",
+      core: { user_results: { result: {
+        rest_id: "8",
+        core: { name: "Current Ada", screen_name: "current_ada" },
+        avatar: { image_url: "https://pbs.twimg.com/profile_images/8/avatar.jpg" }
+      } } },
+      legacy: {
+        full_text: "Tweet with a picture",
+        created_at: "Tue Jan 02 00:00:00 +0000 2024",
+        extended_entities: { media: [{
+          type: "photo",
+          media_url_https: "https://pbs.twimg.com/media/picture.jpg",
+          ext_alt_text: "A diagram",
+          sizes: { large: { w: 1200, h: 800 } }
+        }] }
+      }
+    }
+  } } });
+  const result = parseTimelineResponse(payload, "like");
+  assert.equal(result.rows[0].authorName, "Current Ada");
+  assert.equal(result.rows[0].authorHandle, "@current_ada");
+  assert.equal(result.rows[0].avatarUrl, "https://pbs.twimg.com/profile_images/8/avatar.jpg");
+  assert.equal(result.rows[0].media[0].url, "https://pbs.twimg.com/media/picture.jpg");
+  assert.deepEqual(result.rows[0].contentTypes, ["image"]);
+});
+
 test("normalizes relationship timelines into users", () => {
   const payload = timeline({ user_results: { result: {
     __typename: "User", rest_id: "7", legacy: {
@@ -42,4 +72,17 @@ test("normalizes relationship timelines into users", () => {
   assert.equal(result.store, "users");
   assert.equal(result.rows[0].id, "following_7");
   assert.equal(result.rows[0].followersCount, 120);
+});
+
+test("normalizes current user identity fields without legacy names", () => {
+  const payload = timeline({ user_results: { result: {
+    rest_id: "9",
+    core: { name: "New Shape", screen_name: "new_shape", created_at: "Mon Jan 01 00:00:00 +0000 2024" },
+    avatar: { image_url: "https://pbs.twimg.com/profile_images/9/new.jpg" },
+    legacy: { description: "Still keeps metrics here", followers_count: 4 }
+  } } });
+  const result = parseTimelineResponse(payload, "follower");
+  assert.equal(result.rows[0].authorName, "New Shape");
+  assert.equal(result.rows[0].authorHandle, "@new_shape");
+  assert.equal(result.rows[0].avatarUrl, "https://pbs.twimg.com/profile_images/9/new.jpg");
 });

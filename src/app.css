@@ -80,6 +80,7 @@ h2 { font-size: 28px; }
 .bookmark-text { margin: 17px 0 20px; font: 17px/1.5 var(--serif); letter-spacing: -.012em; white-space: pre-wrap; overflow-wrap: anywhere; }
 .media-preview { display: block; height: 220px; margin: 14px 0 0; overflow: hidden; background: var(--ground); border-radius: 7px; }
 .media-preview img { width: 100%; height: 100%; object-fit: cover; }
+.media-preview.media-error { display: none; }
 .gallery { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .gallery .bookmark-card { padding: 10px; }
 .gallery .bookmark-text { display: -webkit-box; margin: 12px 4px 15px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: 14px; }

@@ -1,14 +1,27 @@
 import { dumpDatabase, getAll, putMany, remove, restoreDatabase } from "./lib/db.js";
 import { filterPosts } from "./lib/search.js";
-import { parseBookmarksResponse } from "./lib/x-sync.js";
+import { parseTimelineResponse } from "./lib/x-sync.js";
 
 const $ = selector => document.querySelector(selector);
+const CATEGORIES = {
+  bookmark: { label: "书签", singular: "书签", store: "posts", openUrl: "https://x.com/i/bookmarks", instruction: "打开 X 书签页" },
+  like: { label: "喜欢", singular: "喜欢", store: "posts", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“喜欢”标签" },
+  post: { label: "推文", singular: "推文", store: "posts", syncCategory: "post", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“回复”标签" },
+  reply: { label: "回复", singular: "回复", store: "posts", syncCategory: "post", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“回复”标签" },
+  following: { label: "正在关注", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“正在关注”" },
+  follower: { label: "关注者", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“关注者”" },
+  blocked: { label: "已屏蔽", singular: "用户", store: "users", openUrl: "https://x.com/settings/blocked/all", instruction: "打开 X 的已屏蔽账号设置" }
+};
+const USER_CATEGORIES = new Set(["following", "follower", "blocked"]);
 const state = {
   posts: [],
+  users: [],
+  category: "bookmark",
   folder: "all",
-  view: "cards",
+  view: "compact",
   filters: { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false },
   syncReady: false,
+  captureCategories: {},
   syncing: false,
   stopSync: false
 };
@@ -56,12 +69,32 @@ function formatDate(seconds) {
   return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "short", day: "numeric" }).format(new Date(seconds * 1000));
 }
 
+function currentDataset() {
+  return CATEGORIES[state.category].store === "users" ? state.users : state.posts;
+}
+
+function rowBelongsToCategory(row, category) {
+  const storedCategory = row.category || "bookmark";
+  if (category === "reply") return storedCategory === "post" && row.postType === "reply";
+  if (category === "post") return storedCategory === "post" && row.postType !== "reply";
+  return storedCategory === category;
+}
+
+function categoryRows() {
+  return currentDataset().filter(row => rowBelongsToCategory(row, state.category));
+}
+
 function currentRows() {
-  return filterPosts(state.posts, { ...state.filters, folder: state.folder });
+  const filters = { ...state.filters, folder: state.folder };
+  if (USER_CATEGORIES.has(state.category)) {
+    filters.contentType = "all";
+    filters.postType = "all";
+  }
+  return filterPosts(categoryRows(), filters);
 }
 
 function folders() {
-  const values = new Set(state.posts.map(post => post.folder || "unsorted"));
+  const values = new Set(categoryRows().map(row => row.folder || "unsorted"));
   values.add("unsorted");
   return [...values].sort((a, b) => a === "unsorted" ? -1 : b === "unsorted" ? 1 : a.localeCompare(b, "zh-CN"));
 }
@@ -72,10 +105,10 @@ function renderFolders() {
   const all = element("button", {
     className: "folder-item" + (state.folder === "all" ? " active" : ""),
     onclick: () => selectFolder("all")
-  }, [element("span", { text: "全部" }), element("small", { text: String(state.posts.length) })]);
+  }, [element("span", { text: "全部" }), element("small", { text: String(categoryRows().length) })]);
   list.append(all);
   for (const folder of folders()) {
-    const count = state.posts.filter(post => (post.folder || "unsorted") === folder).length;
+    const count = categoryRows().filter(row => (row.folder || "unsorted") === folder).length;
     list.append(element("button", {
       className: "folder-item" + (state.folder === folder ? " active" : ""),
       onclick: () => selectFolder(folder)
@@ -101,10 +134,11 @@ function makeAvatar(post) {
   return avatar;
 }
 
-function makeCard(post) {
+function makeCard(row) {
+  const isUser = USER_CATEGORIES.has(state.category);
   const authorCopy = element("div", { className: "author-copy" }, [
-    element("b", { text: post.authorName || "Unknown" }),
-    element("span", { text: post.authorHandle || "" })
+    element("b", { text: row.authorName || "Unknown" }),
+    element("span", { text: row.authorHandle || "" })
   ]);
   const deleteButton = element("button", {
     className: "card-menu",
@@ -112,35 +146,45 @@ function makeCard(post) {
     "aria-label": "仅从本地删除",
     text: "×",
     onclick: async () => {
-      if (!confirm("只从 xShelf 本地删除这条书签？X 上的原书签不会变化。")) return;
-      await remove("posts", post.id);
-      state.posts = state.posts.filter(item => item.id !== post.id);
+      if (!confirm("只从 xShelf 本地删除这条记录？X 上的内容不会变化。")) return;
+      const store = CATEGORIES[state.category].store;
+      await remove(store, row.id);
+      state[store] = state[store].filter(item => item.id !== row.id);
       render();
     }
   });
-  const author = element("div", { className: "author" }, [makeAvatar(post), authorCopy, deleteButton]);
-  const textLink = element("a", { className: "bookmark-text", href: post.url || "#", target: "_blank", rel: "noreferrer" });
-  textLink.textContent = post.text || post.articleTitle || "（没有可显示的正文）";
+  const author = element("div", { className: "author" }, [makeAvatar(row), authorCopy, deleteButton]);
+  const textLink = element("a", { className: "bookmark-text", href: row.url || "#", target: "_blank", rel: "noreferrer" });
+  textLink.textContent = isUser ? (row.description || "（没有个人简介）") : (row.text || row.articleTitle || "（没有可显示的正文）");
   textLink.style.color = "inherit";
   textLink.style.textDecoration = "none";
 
   const select = element("select", { className: "folder-select", "aria-label": "移动到文件夹" });
   for (const folder of folders()) {
     const option = element("option", { value: folder, text: folderName(folder) });
-    option.selected = (post.folder || "unsorted") === folder;
+    option.selected = (row.folder || "unsorted") === folder;
     select.append(option);
   }
   select.addEventListener("change", async () => {
-    post.folder = select.value;
-    await putMany("posts", [post]);
+    row.folder = select.value;
+    await putMany(CATEGORIES[state.category].store, [row]);
     render();
   });
+  const detail = isUser ? (row.followersCount || 0).toLocaleString() + " 关注者" : (row.contentTypes?.join(" / ") || "");
   const foot = element("div", { className: "card-foot" }, [
-    element("span", { text: formatDate(post.createdAt) }),
-    post.contentTypes?.length ? element("span", { text: post.contentTypes.join(" / ") }) : element("span"),
+    element("span", { text: formatDate(row.createdAt) }),
+    element("span", { text: detail }),
     select
   ]);
-  return element("article", { className: "bookmark-card" }, [author, textLink, foot]);
+  const children = [author];
+  if (state.view === "gallery" && row.media?.length) {
+    const media = row.media[0];
+    children.push(element("a", { className: "media-preview", href: row.url || media.url, target: "_blank", rel: "noreferrer" }, [
+      element("img", { src: media.url, alt: "", loading: "lazy", referrerpolicy: "no-referrer" })
+    ]));
+  }
+  children.push(textLink, foot);
+  return element("article", { className: "bookmark-card" }, children);
 }
 
 function renderStats(rows) {
@@ -155,23 +199,25 @@ function renderStats(rows) {
       element("span", { text: String(count) })
     ]));
   });
-  const authors = new Set(rows.map(post => post.authorHandle).filter(Boolean)).size;
+  const people = new Set(rows.map(row => row.authorHandle).filter(Boolean)).size;
+  const unit = USER_CATEGORIES.has(state.category) ? "位用户" : "条内容";
   stage.append(element("div", { className: "stats-board" }, [
-    element("section", { className: "stat-panel" }, [element("div", { className: "big-number", text: String(rows.length) }), element("p", { text: "当前范围内的书签" }), element("div", { className: "big-number", text: String(authors) }), element("p", { text: "位作者" })]),
+    element("section", { className: "stat-panel" }, [element("div", { className: "big-number", text: String(rows.length) }), element("p", { text: "当前范围内的" + unit }), element("div", { className: "big-number", text: String(people) }), element("p", { text: USER_CATEGORIES.has(state.category) ? "个账号" : "位作者" })]),
     element("section", { className: "stat-panel" }, [element("p", { text: "文件夹分布" }), bars])
   ]));
 }
 
-function renderEmpty(hasAnyPosts) {
-  const title = hasAnyPosts ? "没有找到符合条件的书签" : "书架还是空的";
-  const copy = hasAnyPosts ? "换个关键词，或清除筛选条件后再看看。" : "先打开 X 的书签页，让 xShelf 识别当前会话，然后回到这里同步。也可以导入已有的 JSON、JSONL 或 ZIP 备份。";
-  const action = element("button", { className: "ink-button", text: hasAnyPosts ? "清除搜索和筛选" : "打开 X 书签", onclick: () => {
-    if (hasAnyPosts) {
+function renderEmpty(hasAnyRows) {
+  const config = CATEGORIES[state.category];
+  const title = hasAnyRows ? "没有找到符合条件的内容" : config.label + "还是空的";
+  const copy = hasAnyRows ? "换个关键词，或清除筛选条件后再看看。" : "先" + config.instruction + "，让 xShelf 识别该列表的请求，然后回到这里同步。";
+  const action = element("button", { className: "ink-button", text: hasAnyRows ? "清除搜索和筛选" : config.instruction, onclick: () => {
+    if (hasAnyRows) {
       state.filters = { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false };
       $("#searchInput").value = "";
       $("#filterForm").reset();
       render();
-    } else window.open("https://x.com/i/bookmarks", "_blank");
+    } else window.open(config.openUrl, "_blank");
   }});
   stage.append(element("div", { className: "empty-state" }, [element("div", { className: "empty-mark" }), element("h2", { text: title }), element("p", { text: copy }), action]));
 }
@@ -179,45 +225,66 @@ function renderEmpty(hasAnyPosts) {
 function render() {
   renderFolders();
   const rows = currentRows();
-  $("#totalCount").textContent = String(state.posts.length);
-  $("#contextLabel").textContent = state.folder === "all" ? "全部书签" : folderName(state.folder);
-  $("#pageTitle").textContent = rows.length + " 条可回看的内容";
-  const activeFilters = [state.filters.contentType !== "all", state.filters.postType !== "all", state.filters.startDate, state.filters.endDate, state.filters.oldest].filter(Boolean).length;
+  document.querySelectorAll("[data-count]").forEach(node => {
+    const category = node.dataset.count;
+    const source = CATEGORIES[category].store === "users" ? state.users : state.posts;
+    node.textContent = String(source.filter(row => rowBelongsToCategory(row, category)).length);
+  });
+  document.querySelectorAll("[data-category]").forEach(node => node.classList.toggle("active", node.dataset.category === state.category));
+  $("#contextLabel").textContent = (state.folder === "all" ? "全部" : folderName(state.folder)) + " · " + CATEGORIES[state.category].label;
+  $("#pageTitle").textContent = rows.length + (USER_CATEGORIES.has(state.category) ? " 位用户" : " 条可回看的内容");
+  const postOnlyFilters = USER_CATEGORIES.has(state.category) ? [] : [state.filters.contentType !== "all", state.filters.postType !== "all"];
+  const activeFilters = [...postOnlyFilters, state.filters.startDate, state.filters.endDate, state.filters.oldest].filter(Boolean).length;
   $("#filterCount").textContent = activeFilters ? String(activeFilters) : "";
-  stage.className = state.view === "compact" ? "card-grid compact" : "card-grid";
+  stage.className = state.view === "compact" ? "card-grid compact" : state.view === "gallery" ? "card-grid gallery" : "card-grid";
   stage.replaceChildren();
-  if (!rows.length) renderEmpty(state.posts.length > 0);
+  if (!rows.length) renderEmpty(categoryRows().length > 0);
   else if (state.view === "stats") renderStats(rows);
-  else rows.forEach(post => stage.append(makeCard(post)));
+  else {
+    if (state.view === "compact") {
+      stage.append(element("div", { className: "compact-header" }, [
+        element("span", { text: "用户" }),
+        element("span", { text: USER_CATEGORIES.has(state.category) ? "简介" : "内容" }),
+        element("span", { text: "日期 / 文件夹" })
+      ]));
+    }
+    rows.forEach(row => stage.append(makeCard(row)));
+  }
 }
 
 async function refreshCaptureStatus() {
   const response = await runtimeMessage({ type: "capture-status" });
-  state.syncReady = Boolean(response?.ok && response.ready);
+  state.captureCategories = response?.categories || {};
+  const captureCategory = CATEGORIES[state.category].syncCategory || state.category;
+  state.syncReady = Boolean(response?.ok && state.captureCategories[captureCategory]);
   $("#syncLight").classList.toggle("ready", state.syncReady);
   if (!state.syncing) {
-    $("#syncLabel").textContent = state.syncReady ? "同步书签" : "连接 X";
-    $("#syncMeta").textContent = state.syncReady ? "已识别当前会话" : "先打开 X 书签页";
+    $("#syncLabel").textContent = state.syncReady ? "同步" + CATEGORIES[state.category].label : "连接 " + CATEGORIES[state.category].label;
+    $("#syncMeta").textContent = state.syncReady ? "已识别该列表请求" : CATEGORIES[state.category].instruction;
   }
 }
 
-async function syncBookmarks() {
+async function syncCategory() {
+  const category = state.category;
   if (state.syncing) {
     state.stopSync = true;
     $("#syncMeta").textContent = "将在本页结束后停止";
     return;
   }
   await refreshCaptureStatus();
-  if (!state.syncReady) {
-    window.open("https://x.com/i/bookmarks", "_blank");
-    showToast("X 书签页加载完成后，回到这里再次点击同步。");
+  const config = CATEGORIES[category];
+  const captureCategory = config.syncCategory || category;
+  if (!state.captureCategories[captureCategory]) {
+    window.open(config.openUrl, "_blank");
+    showToast(config.instruction + "，页面加载完成后回来再次点击同步。");
     return;
   }
   state.syncing = true;
   state.stopSync = false;
   $("#syncLight").classList.add("busy");
   $("#syncLabel").textContent = "停止同步";
-  const known = new Map(state.posts.map(post => [post.id, post]));
+  const collection = config.store === "users" ? state.users : state.posts;
+  const known = new Map(collection.filter(row => (row.category || "bookmark") === captureCategory).map(row => [row.id, row]));
   let cursor = null;
   let previousCursor = null;
   let added = 0;
@@ -225,25 +292,28 @@ async function syncBookmarks() {
   try {
     while (!state.stopSync && pages < 50) {
       $("#syncMeta").textContent = "正在读取第 " + (pages + 1) + " 页";
-      const response = await runtimeMessage({ type: "fetch-bookmarks-page", cursor });
+      const response = await runtimeMessage({ type: "fetch-timeline-page", category: captureCategory, cursor });
       if (!response?.ok) throw new Error(response?.error || "同步失败");
-      const parsed = parseBookmarksResponse(response.data);
-      const newOnPage = parsed.posts.filter(post => !known.has(post.id)).length;
-      const merged = parsed.posts.map(post => {
-        const old = known.get(post.id);
-        return old ? { ...post, folder: old.folder, bookmarkedAt: old.bookmarkedAt } : post;
+      const parsed = parseTimelineResponse(response.data, captureCategory);
+      const newOnPage = parsed.rows.filter(row => !known.has(row.id)).length;
+      const merged = parsed.rows.map(row => {
+        const old = known.get(row.id);
+        return old ? { ...row, folder: old.folder, savedAt: old.savedAt || old.bookmarkedAt || row.savedAt } : row;
       });
-      await putMany("posts", merged);
-      merged.forEach(post => known.set(post.id, post));
+      await putMany(config.store, merged);
+      merged.forEach(row => known.set(row.id, row));
       added += newOnPage;
       pages += 1;
-      state.posts = [...known.values()];
+      state[config.store] = [
+        ...collection.filter(row => (row.category || "bookmark") !== captureCategory),
+        ...known.values()
+      ];
       render();
-      if (!parsed.cursor || parsed.cursor === previousCursor || !parsed.posts.length || (pages > 1 && newOnPage < 10)) break;
+      if (!parsed.cursor || parsed.cursor === previousCursor || !parsed.rows.length || (pages > 1 && newOnPage < 10)) break;
       previousCursor = cursor;
       cursor = parsed.cursor;
     }
-    showToast("同步完成：新增 " + added + " 条，读取 " + pages + " 页。");
+    showToast(CATEGORIES[category].label + "同步完成：新增 " + added + " 条，读取 " + pages + " 页。");
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -268,18 +338,20 @@ function exportRows(format) {
   if (format === "json") {
     downloadBlob(new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }), "xshelf-" + stamp + ".json");
   } else if (format === "csv") {
-    const columns = ["tweetId", "authorName", "authorHandle", "text", "createdAt", "folder", "url"];
+    const columns = USER_CATEGORIES.has(state.category)
+      ? ["userId", "authorName", "authorHandle", "description", "followersCount", "followingCount", "postCount", "createdAt", "folder", "url"]
+      : ["tweetId", "authorName", "authorHandle", "text", "createdAt", "folder", "url"];
     const quote = value => '"' + String(value ?? "").replaceAll('"', '""').replaceAll("\n", "\\n") + '"';
     const csv = "\ufeff" + [columns.join(","), ...rows.map(row => columns.map(key => quote(row[key])).join(","))].join("\n");
     downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "xshelf-" + stamp + ".csv");
   } else {
     const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-    const cards = rows.map(row => '<article><p>' + escape(row.text) + '</p><small>' + escape(row.authorName) + ' ' + escape(row.authorHandle) + ' · ' + escape(folderName(row.folder)) + '</small><a href="' + escape(row.url) + '">查看原帖</a></article>').join("");
+    const cards = rows.map(row => '<article><p>' + escape(row.text || row.description) + '</p><small>' + escape(row.authorName) + ' ' + escape(row.authorHandle) + ' · ' + escape(folderName(row.folder)) + '</small><a href="' + escape(row.url) + '">在 X 查看</a></article>').join("");
     const html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>xShelf export</title><style>body{max-width:800px;margin:40px auto;padding:0 20px;background:#e5e7e3;color:#18201b;font:16px Georgia,serif}h1{font-size:42px}article{margin:12px 0;padding:20px;background:#fafaf7;border:1px solid #ccd1cc;border-radius:10px}small{color:#68726b}a{display:block;margin-top:14px;color:#146b50}</style><h1>xShelf</h1>' + cards;
     downloadBlob(new Blob([html], { type: "text/html;charset=utf-8" }), "xshelf-" + stamp + ".html");
   }
   $("#exportDialog").close();
-  showToast("已导出 " + rows.length + " 条书签。");
+  showToast("已导出 " + rows.length + " 条记录。");
 }
 
 async function createBackup() {
@@ -296,26 +368,37 @@ async function createBackup() {
 
 function normalizeImported(row, index) {
   const source = row?._data ? { ...row._data, ...row } : row;
-  const tweetId = source.tweetId || source.rest_id || source.id_str || String(source.id || index).split("_").at(-1);
+  const requestedCategory = source.category || state.category;
+  const category = requestedCategory === "reply" ? "post" : requestedCategory;
+  const recordId = source.tweetId || source.userId || source.rest_id || source.id_str || String(source.id || index).split("_").at(-1);
   const user = source.user || source.core?.user_results?.result?.legacy || {};
   const handle = source.authorHandle || source.screen_name || user.screen_name || "";
+  const screenName = String(handle).replace(/^@/, "");
   const created = source.createdAt ?? source.created_at;
+  const isUser = USER_CATEGORIES.has(category);
   return {
-    id: String(source.id || "bookmark_" + tweetId),
-    tweetId: String(tweetId),
+    id: String(source.id || category + "_" + recordId),
+    category,
+    ...(isUser ? { userId: String(source.userId || source.user_id || recordId) } : { tweetId: String(recordId) }),
     text: source.text || source.full_text || source.note_tweet?.text || "",
+    description: source.description || user.description || "",
     authorId: String(source.authorId || source.user_id || ""),
     authorName: source.authorName || source.name || user.name || "Unknown",
     authorHandle: handle ? (String(handle).startsWith("@") ? String(handle) : "@" + handle) : "",
     avatarUrl: source.avatarUrl || source.profile_image_url_https || user.profile_image_url_https || "",
     createdAt: typeof created === "number" ? (created > 1e12 ? Math.floor(created / 1000) : created) : Math.floor(Date.parse(created || 0) / 1000) || 0,
-    bookmarkedAt: source.bookmarkedAt || Math.floor(Date.now() / 1000),
+    savedAt: source.savedAt || source.bookmarkedAt || Math.floor(Date.now() / 1000),
     folder: source.folder || "unsorted",
+    followersCount: source.followersCount || source.followers_count || 0,
+    followingCount: source.followingCount || source.friends_count || 0,
+    postCount: source.postCount || source.statuses_count || 0,
+    canDm: Boolean(source.canDm ?? source.can_dm),
+    isProtected: Boolean(source.isProtected ?? source.protected),
     contentTypes: source.contentTypes || [],
-    postType: source.postType || "post",
+    postType: source.postType || (requestedCategory === "reply" ? "reply" : "post"),
     articleTitle: source.articleTitle || source.article?.title || "",
     articlePreview: source.articlePreview || source.article?.preview_text || "",
-    url: source.url || (handle ? "https://x.com/" + String(handle).replace(/^@/, "") + "/status/" + tweetId : "https://x.com/i/status/" + tweetId),
+    url: source.url || (isUser ? "https://x.com/" + screenName : (screenName ? "https://x.com/" + screenName + "/status/" + recordId : "https://x.com/i/status/" + recordId)),
     media: source.media || []
   };
 }
@@ -345,10 +428,15 @@ async function importFile(file, backupMode = false) {
       const text = await file.text();
       const parsed = file.name.toLowerCase().endsWith(".jsonl") ? parseJsonLines(text) : JSON.parse(text);
       const rows = Array.isArray(parsed) ? parsed : parsed.posts || [];
-      await putMany("posts", rows.map(normalizeImported));
-      showToast("已导入 " + rows.length + " 条书签。");
+      const normalized = rows.map(normalizeImported);
+      const userRows = normalized.filter(row => USER_CATEGORIES.has(row.category));
+      const postRows = normalized.filter(row => !USER_CATEGORIES.has(row.category));
+      await putMany("posts", postRows);
+      await putMany("users", userRows);
+      showToast("已导入 " + rows.length + " 条记录。");
     }
     state.posts = await getAll("posts");
+    state.users = await getAll("users");
     render();
     if (backupMode) $("#backupDialog").close();
   } catch (error) {
@@ -359,7 +447,16 @@ async function importFile(file, backupMode = false) {
 function bindEvents() {
   $("#openNav").onclick = () => $("#app").classList.add("nav-open");
   $("#closeNav").onclick = () => $("#app").classList.remove("nav-open");
-  $("#syncButton").onclick = syncBookmarks;
+  $("#syncButton").onclick = syncCategory;
+  document.addEventListener("click", async event => {
+    const button = event.target.closest("[data-category]");
+    if (!button) return;
+    state.category = button.dataset.category;
+    state.folder = "all";
+    $("#app").classList.remove("nav-open");
+    render();
+    await refreshCaptureStatus();
+  });
   $("#searchInput").addEventListener("input", event => { state.filters.query = event.target.value; render(); });
   document.addEventListener("keydown", event => {
     if (event.key === "/" && !["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) {
@@ -399,6 +496,7 @@ function bindEvents() {
 async function start() {
   bindEvents();
   state.posts = await getAll("posts");
+  state.users = await getAll("users");
   render();
   await refreshCaptureStatus();
   if (!globalThis.chrome?.runtime) {

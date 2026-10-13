@@ -18,6 +18,11 @@ test("matches phrases and wildcard terms case-insensitively", () => {
   assert.equal(createSearchPredicate("claude and shelf")(posts[0].text), false);
 });
 
+test("searches user descriptions", () => {
+  assert.equal(createSearchPredicate("builds tools")("Ada builds tools"), true);
+  assert.equal(filterPosts([{ description: "Builds local tools", authorHandle: "@ada", folder: "all", createdAt: 1 }], { query: "local" }).length, 1);
+});
+
 test("filters and orders posts", () => {
   const rows = filterPosts(posts, { query: "claude", folder: "tools" });
   assert.equal(rows.length, 1);

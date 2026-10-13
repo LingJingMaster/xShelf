@@ -3,14 +3,14 @@ function unwrapTweet(result) {
   return result;
 }
 
-function findTweetResults(node, output = []) {
+function findResults(node, key, output = []) {
   if (!node || typeof node !== "object") return output;
-  if (node.tweet_results?.result) {
-    output.push(node.tweet_results.result);
+  if (node[key]?.result) {
+    output.push(node[key].result);
     return output;
   }
-  if (Array.isArray(node)) node.forEach(item => findTweetResults(item, output));
-  else Object.values(node).forEach(value => findTweetResults(value, output));
+  if (Array.isArray(node)) node.forEach(item => findResults(item, key, output));
+  else Object.values(node).forEach(value => findResults(value, key, output));
   return output;
 }
 
@@ -35,7 +35,7 @@ function mediaTypes(legacy) {
   return [...types];
 }
 
-export function normalizeTweet(raw) {
+export function normalizeTweet(raw, category = "bookmark") {
   const tweet = unwrapTweet(raw);
   const legacy = tweet?.legacy;
   if (!tweet?.rest_id || !legacy) return null;
@@ -45,7 +45,8 @@ export function normalizeTweet(raw) {
   const article = tweet.article?.article_results?.result;
   const postType = legacy.retweeted_status_result ? "repost" : legacy.in_reply_to_status_id_str ? "reply" : legacy.quoted_status_id_str ? "quote" : "post";
   return {
-    id: "bookmark_" + tweet.rest_id,
+    id: category + "_" + tweet.rest_id,
+    category,
     tweetId: tweet.rest_id,
     text: noteText || legacy.full_text || "",
     authorId: user?.rest_id || "",
@@ -53,7 +54,7 @@ export function normalizeTweet(raw) {
     authorHandle: userLegacy.screen_name ? "@" + userLegacy.screen_name : "",
     avatarUrl: userLegacy.profile_image_url_https || "",
     createdAt: Math.floor(Date.parse(legacy.created_at || 0) / 1000) || 0,
-    bookmarkedAt: Math.floor(Date.now() / 1000),
+    savedAt: Math.floor(Date.now() / 1000),
     folder: "unsorted",
     contentTypes: [...mediaTypes(legacy), ...(article ? ["article"] : [])],
     postType,
@@ -68,12 +69,44 @@ export function normalizeTweet(raw) {
   };
 }
 
-export function parseBookmarksResponse(payload) {
+export function normalizeUser(raw, category) {
+  const user = raw?.__typename === "UserUnavailable" ? null : raw;
+  const legacy = user?.legacy;
+  if (!user?.rest_id || !legacy) return null;
+  return {
+    id: category + "_" + user.rest_id,
+    category,
+    userId: user.rest_id,
+    authorName: legacy.name || "Unknown",
+    authorHandle: legacy.screen_name ? "@" + legacy.screen_name : "",
+    avatarUrl: legacy.profile_image_url_https || "",
+    description: legacy.description || "",
+    createdAt: Math.floor(Date.parse(legacy.created_at || 0) / 1000) || 0,
+    savedAt: Math.floor(Date.now() / 1000),
+    folder: "unsorted",
+    followersCount: legacy.followers_count || 0,
+    followingCount: legacy.friends_count || 0,
+    postCount: legacy.statuses_count || 0,
+    canDm: Boolean(legacy.can_dm),
+    isProtected: Boolean(legacy.protected),
+    url: legacy.screen_name ? "https://x.com/" + legacy.screen_name : "https://x.com/i/user/" + user.rest_id
+  };
+}
+
+export function parseTimelineResponse(payload, category = "bookmark") {
+  const userCategory = ["following", "follower", "blocked"].includes(category);
+  const rawRows = findResults(payload, userCategory ? "user_results" : "tweet_results");
+  const normalize = userCategory ? raw => normalizeUser(raw, category) : raw => normalizeTweet(raw, category);
   const seen = new Set();
-  const posts = findTweetResults(payload).map(normalizeTweet).filter(post => {
-    if (!post || seen.has(post.id)) return false;
-    seen.add(post.id);
+  const rows = rawRows.map(normalize).filter(row => {
+    if (!row || seen.has(row.id)) return false;
+    seen.add(row.id);
     return true;
   });
-  return { posts, cursor: findBottomCursor(payload) };
+  return { rows, cursor: findBottomCursor(payload), store: userCategory ? "users" : "posts" };
+}
+
+export function parseBookmarksResponse(payload) {
+  const parsed = parseTimelineResponse(payload, "bookmark");
+  return { posts: parsed.rows, cursor: parsed.cursor };
 }

@@ -1,5 +1,8 @@
+import { categoryFromUrl } from "./lib/x-capture.js";
+
 const APP_URL = chrome.runtime.getURL("app.html");
-const CAPTURED_KEY = "xBookmarkRequest";
+const CAPTURED_KEY = "xRequestTemplates";
+const LEGACY_CAPTURED_KEY = "xBookmarkRequest";
 const SAFE_HEADERS = new Set([
   "authorization",
   "x-csrf-token",
@@ -9,6 +12,7 @@ const SAFE_HEADERS = new Set([
   "x-twitter-auth-type",
   "x-twitter-client-language"
 ]);
+let captureQueue = Promise.resolve();
 
 chrome.action.onClicked.addListener(async () => {
   const tabs = await chrome.tabs.query({ url: APP_URL + "*" });
@@ -22,15 +26,20 @@ chrome.action.onClicked.addListener(async () => {
 
 chrome.webRequest.onBeforeSendHeaders.addListener(
   details => {
-    if (details.tabId < 0 || !/\/(Bookmarks|BookmarkFolderTimeline)(?:\?|$)/.test(details.url)) return;
+    if (details.tabId < 0) return;
+    const category = categoryFromUrl(details.url);
+    if (!category) return;
     const headers = {};
     for (const header of details.requestHeaders || []) {
       const name = header.name.toLowerCase();
       if (SAFE_HEADERS.has(name) && header.value) headers[name] = header.value;
     }
     if (!headers.authorization || !headers["x-csrf-token"]) return;
-    chrome.storage.session.set({
-      [CAPTURED_KEY]: { url: details.url, headers, capturedAt: Date.now() }
+    captureQueue = captureQueue.then(async () => {
+      const stored = await chrome.storage.session.get(CAPTURED_KEY);
+      const templates = stored[CAPTURED_KEY] || {};
+      templates[category] = { url: details.url, headers, capturedAt: Date.now() };
+      await chrome.storage.session.set({ [CAPTURED_KEY]: templates });
     });
   },
   { urls: ["https://x.com/i/api/graphql/*"] },
@@ -40,24 +49,31 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 function buildPageUrl(templateUrl, cursor) {
   const url = new URL(templateUrl);
   const variables = JSON.parse(url.searchParams.get("variables") || "{}");
-  variables.count = 100;
+  variables.count = 20;
   if (cursor) variables.cursor = cursor;
   else delete variables.cursor;
-  variables.includePromotedContent = false;
+  if ("includePromotedContent" in variables) variables.includePromotedContent = false;
   url.searchParams.set("variables", JSON.stringify(variables));
   return url.toString();
 }
 
-async function getCaptureStatus() {
-  const stored = await chrome.storage.session.get(CAPTURED_KEY);
-  const capture = stored[CAPTURED_KEY];
-  return capture ? { ready: true, capturedAt: capture.capturedAt } : { ready: false };
+async function getTemplates() {
+  const stored = await chrome.storage.session.get([CAPTURED_KEY, LEGACY_CAPTURED_KEY]);
+  const templates = stored[CAPTURED_KEY] || {};
+  if (!templates.bookmark && stored[LEGACY_CAPTURED_KEY]) templates.bookmark = stored[LEGACY_CAPTURED_KEY];
+  return templates;
 }
 
-async function fetchBookmarkPage(cursor) {
-  const stored = await chrome.storage.session.get(CAPTURED_KEY);
-  const capture = stored[CAPTURED_KEY];
-  if (!capture) throw new Error("Open X bookmarks once so xShelf can observe a signed-in request.");
+async function getCaptureStatus() {
+  const templates = await getTemplates();
+  const categories = Object.fromEntries(Object.entries(templates).map(([category, capture]) => [category, capture.capturedAt]));
+  return { ready: Object.keys(categories).length > 0, categories };
+}
+
+async function fetchTimelinePage(category, cursor) {
+  const templates = await getTemplates();
+  const capture = templates[category];
+  if (!capture) throw new Error("Open the matching X page once so xShelf can observe its signed-in request.");
   const response = await fetch(buildPageUrl(capture.url, cursor), {
     method: "GET",
     headers: capture.headers,
@@ -77,9 +93,11 @@ async function fetchBookmarkPage(cursor) {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const task = message?.type === "capture-status"
     ? getCaptureStatus()
-    : message?.type === "fetch-bookmarks-page"
-      ? fetchBookmarkPage(message.cursor || null)
-      : null;
+    : message?.type === "fetch-timeline-page"
+      ? fetchTimelinePage(message.category, message.cursor || null)
+      : message?.type === "fetch-bookmarks-page"
+        ? fetchTimelinePage("bookmark", message.cursor || null)
+        : null;
   if (!task) return false;
   task.then(result => sendResponse({ ok: true, ...result })).catch(error => sendResponse({ ok: false, error: error.message }));
   return true;

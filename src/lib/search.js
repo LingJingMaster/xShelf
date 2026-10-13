@@ -25,8 +25,8 @@ export function createSearchPredicate(input = "") {
   return text => groups.some(group => group.every(pattern => pattern.test(text || "")));
 }
 
-export function searchableText(post) {
-  return [post.text, post.articleTitle, post.articlePreview, post.authorName, post.authorHandle].filter(Boolean).join(" ");
+export function searchableText(row) {
+  return [row.text, row.description, row.articleTitle, row.articlePreview, row.authorName, row.authorHandle].filter(Boolean).join(" ");
 }
 
 export function filterPosts(posts, filters = {}) {

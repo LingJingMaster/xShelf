@@ -47,6 +47,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .sidebar-foot p { margin: 11px 0 0; color: var(--faint); font-size: 11px; }
 .main { min-width: 0; padding: 18px clamp(18px, 3vw, 42px) 56px; }
 .topbar { display: flex; gap: 8px; align-items: center; }
+.content-tabs { display: flex; align-items: center; gap: 3px; padding: 3px; background: rgba(248,248,245,.62); border: 1px solid var(--line); border-radius: 10px; }
+.content-tabs button { display: flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 11px; color: var(--muted); background: transparent; border: 0; border-radius: 7px; white-space: nowrap; }
+.content-tabs button small { min-width: 24px; padding: 1px 6px; color: var(--faint); background: var(--ground); border-radius: 99px; }
+.content-tabs button.active { color: var(--paper); background: var(--ink); }
+.content-tabs button.active small { color: var(--ink); background: var(--paper); }
 .search-field { flex: 1; display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
 .search-field span { color: var(--muted); font-size: 20px; transform: rotate(-15deg); }
 .search-field input { width: 100%; padding: 10px 0; background: transparent; border: 0; outline: 0; }
@@ -73,9 +78,16 @@ h2 { font-size: 28px; }
 .author span { color: var(--faint); font-size: 11px; }
 .card-menu { margin-left: auto; color: var(--muted); background: none; border: 0; }
 .bookmark-text { margin: 17px 0 20px; font: 17px/1.5 var(--serif); letter-spacing: -.012em; white-space: pre-wrap; overflow-wrap: anywhere; }
+.media-preview { display: block; height: 220px; margin: 14px 0 0; overflow: hidden; background: var(--ground); border-radius: 7px; }
+.media-preview img { width: 100%; height: 100%; object-fit: cover; }
+.gallery { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.gallery .bookmark-card { padding: 10px; }
+.gallery .bookmark-text { display: -webkit-box; margin: 12px 4px 15px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: 14px; }
+.gallery .author, .gallery .card-foot { margin: 0 4px; }
 .card-foot { display: flex; align-items: center; gap: 7px; margin-top: auto; color: var(--faint); font-size: 11px; }
 .folder-select { max-width: 120px; margin-left: auto; padding: 3px 7px; color: var(--muted); background: var(--paper-2); border: 0; border-radius: 99px; font-size: 11px; }
 .card-grid.compact { display: flex; flex-direction: column; }
+.compact-header { display: grid; grid-template-columns: 180px minmax(0, 1fr) 180px; gap: 18px; padding: 7px 15px; color: var(--faint); font-size: 11px; border-bottom: 1px solid var(--line); }
 .compact .bookmark-card { min-height: 0; display: grid; grid-template-columns: 180px minmax(0, 1fr) 180px; align-items: center; gap: 18px; padding: 12px 15px; }
 .compact .bookmark-text { margin: 0; font-size: 15px; }
 .compact .card-foot { margin: 0; justify-content: end; }
@@ -119,6 +131,7 @@ dialog::backdrop { background: rgba(23,32,27,.42); backdrop-filter: blur(2px); }
   .app.nav-open .sidebar { transform: none; }
   .mobile-only { display: inline-grid; place-items: center; }
   .main { padding: 14px 14px 40px; }
+  .compact-header { display: none; }
   .compact .bookmark-card { display: flex; }
   .compact .bookmark-text { margin: 14px 0; }
   .compact .card-foot { width: 100%; justify-content: start; }
@@ -126,6 +139,7 @@ dialog::backdrop { background: rgba(23,32,27,.42); backdrop-filter: blur(2px); }
 }
 @media (max-width: 560px) {
   .topbar { flex-wrap: wrap; }
+  .content-tabs { order: 2; width: 100%; overflow-x: auto; }
   .search-field { order: 3; flex-basis: 100%; }
   .shelf-head { margin-top: 24px; }
   .card-grid { grid-template-columns: 1fr; }

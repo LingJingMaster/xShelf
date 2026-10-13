@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "xShelf",
-  "version": "0.1.0",
-  "description": "Search, organize, export, and back up your X bookmarks locally.",
+  "version": "0.2.0",
+  "description": "Locally sync, search, organize, and export your X bookmarks, likes, posts, and relationships.",
   "permissions": ["downloads", "storage", "unlimitedStorage", "webRequest", "declarativeNetRequest"],
   "host_permissions": ["https://x.com/*"],
   "background": { "service_worker": "src/background.js", "type": "module" },

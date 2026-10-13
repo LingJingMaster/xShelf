@@ -21,6 +21,7 @@ const state = {
   view: "compact",
   filters: { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false },
   captureWaitId: 0,
+  reconnects: {},
   syncReady: false,
   captureCategories: {},
   awaitingCapture: false,
@@ -288,7 +289,7 @@ function renderEmpty(hasAnyRows) {
       $("#searchInput").value = "";
       $("#filterForm").reset();
       render();
-    } else syncCategory();
+    } else requestSync();
   }});
   stage.append(element("div", { className: "empty-state" }, [element("div", { className: "empty-mark" }), element("h2", { text: title }), element("p", { text: copy }), action]));
 }
@@ -336,6 +337,11 @@ async function refreshCaptureStatus() {
   }
 }
 
+function requestSync() {
+  state.reconnects[state.category] = 0;
+  return syncCategory();
+}
+
 async function syncCategory(categoryOverride = state.category) {
   const category = typeof categoryOverride === "string" ? categoryOverride : state.category;
   if (state.awaitingCapture) {
@@ -351,6 +357,13 @@ async function syncCategory(categoryOverride = state.category) {
   const config = CATEGORIES[category];
   const captureCategory = config.syncCategory || category;
   if (!state.captureCategories[captureCategory]) {
+    if ((state.reconnects[category] || 0) >= 1) {
+      state.awaitingCapture = false;
+      $("#syncLight").classList.remove("busy");
+      showToast("X 页面已打开，但没有拿到可用的列表请求。请停一下再试。");
+      return;
+    }
+    state.reconnects[category] = (state.reconnects[category] || 0) + 1;
     state.awaitingCapture = true;
     const waitId = ++state.captureWaitId;
     setTimeout(() => {
@@ -377,6 +390,7 @@ async function syncCategory(categoryOverride = state.category) {
     }
     return;
   }
+  state.reconnects[category] = 0;
   state.syncing = true;
   state.stopSync = false;
   $("#syncLight").classList.add("busy");
@@ -633,7 +647,7 @@ async function bindClearData() {
 function bindEvents() {
   $("#openNav").onclick = () => $("#app").classList.add("nav-open");
   $("#closeNav").onclick = () => $("#app").classList.remove("nav-open");
-  $("#syncButton").onclick = () => syncCategory();
+  $("#syncButton").onclick = () => requestSync();
   if (globalThis.chrome?.runtime?.onMessage) chrome.runtime.onMessage.addListener(handleRuntimeMessage);
   document.addEventListener("click", async event => {
     const button = event.target.closest("[data-category]");

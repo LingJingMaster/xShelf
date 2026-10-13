@@ -42,8 +42,13 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
     captureQueue = captureQueue.then(async () => {
       const stored = await chrome.storage.session.get(CAPTURED_KEY);
       const templates = stored[CAPTURED_KEY] || {};
-      templates[category] = { url: details.url, headers, capturedAt: Date.now() };
-      await chrome.storage.session.set({ [CAPTURED_KEY]: templates });
+      const operation = operationName(details.url);
+      const preferred = PREFERRED_OPERATION[category];
+      const existing = templates[category];
+      if (!(existing && preferred && operationName(existing.url) === preferred && operation !== preferred)) {
+        templates[category] = { url: details.url, headers, capturedAt: Date.now() };
+        await chrome.storage.session.set({ [CAPTURED_KEY]: templates });
+      }
       await completePendingCapture(category);
     });
   },
@@ -187,12 +192,13 @@ chrome.tabs.onRemoved.addListener(async tabId => {
   try { await chrome.runtime.sendMessage({ type: "sync-capture-cancelled", category: pending.requestedCategory }); } catch {}
 });
 
-function templateIsCurrent(category, capture) {
-  let operation = "";
-  try { operation = new URL(capture?.url || "").pathname.split("/").filter(Boolean).at(-1) || ""; } catch {}
-  if (category === "following") return operation === "followingQuery";
-  if (category === "like") return operation === "likesQuery";
-  if (category === "bookmark") return operation === "bookmarksQuery";
+const PREFERRED_OPERATION = { bookmark: "bookmarksQuery", like: "likesQuery", post: "UserOriginalsTimeline", reply: "UserRepliesTimeline", following: "followingQuery" };
+
+function operationName(value) {
+  try { return new URL(value || "").pathname.split("/").filter(Boolean).at(-1) || ""; } catch { return ""; }
+}
+
+function templateIsCurrent(_category, capture) {
   return Boolean(capture?.url);
 }
 

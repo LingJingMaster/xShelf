@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "xShelf",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "Locally sync, search, organize, and export your X bookmarks, likes, posts, and relationships.",
   "permissions": ["downloads", "scripting", "storage", "unlimitedStorage", "webRequest", "declarativeNetRequest"],
   "host_permissions": ["https://x.com/*", "https://twitter.com/*", "https://api.x.com/*", "https://t.co/*", "https://pbs.twimg.com/*", "https://abs.twimg.com/*", "https://video.twimg.com/*"],

@@ -166,27 +166,52 @@ function makeAvatar(post) {
   return avatar;
 }
 
-function previewCandidate(row) {
-  const textLink = row.text?.match(/https:\/\/t\.co\/[A-Za-z0-9]+/)?.[0];
-  const candidates = (row.links || []).flatMap(link => [link.url, link.expandedUrl]).filter(Boolean);
-  return candidates.find(isAllowedPreviewUrl) || (textLink && isAllowedPreviewUrl(textLink) ? textLink : null);
+function previewRank(value) {
+  if (/\/(?:photo|video)\/|pic\.twitter\.com|pbs\.twimg\.com/.test(value)) return 3;
+  if (/^https?:\/\/(?:www\.)?(?:x|twitter)\.com\//.test(value) || value.includes("t.co/")) return 2;
+  return 0;
+}
+
+function previewCandidates(row) {
+  const best = new Map();
+  const add = (url, rank) => {
+    if (!isAllowedPreviewUrl(url)) return;
+    best.set(url, Math.max(best.get(url) || 0, rank));
+  };
+  for (const link of row.links || []) {
+    const target = link.expandedUrl && link.expandedUrl !== link.url ? link.expandedUrl : link.url;
+    add(link.url, previewRank(target || link.url));
+    add(link.expandedUrl, previewRank(link.expandedUrl || ""));
+  }
+  for (const match of (row.text || "").matchAll(/https:\/\/t\.co\/[A-Za-z0-9]+/g)) add(match[0], 1);
+  if (/\/status\/\d+/.test(row.url || "")) add(row.url, 4);
+  return [...best].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([url]) => url);
 }
 
 async function hydrateLinkPreview(row) {
   if (row.media?.length || previewLoading.has(row.id) || previewFailed.has(row.id)) return;
-  const candidate = previewCandidate(row);
-  if (!candidate) return;
+  const candidates = previewCandidates(row);
+  if (!candidates.length) return;
   previewLoading.add(row.id);
-  const response = await runtimeMessage({ type: "resolve-link-preview", url: candidate });
+  let imageUrl = null;
+  let targetUrl = null;
+  for (const url of candidates) {
+    const response = await runtimeMessage({ type: "resolve-link-preview", url });
+    if (response?.imageUrl) {
+      imageUrl = response.imageUrl;
+      targetUrl = response.targetUrl;
+      break;
+    }
+  }
   previewLoading.delete(row.id);
-  if (!response?.ok || !response.imageUrl) {
+  if (!imageUrl) {
     previewFailed.add(row.id);
     if (state.view === "gallery" || state.view === "compact") render();
     return;
   }
-  row.media = [{ type: "photo", url: response.imageUrl, alt: "" }];
+  row.media = [{ type: "photo", url: imageUrl, alt: "" }];
   row.contentTypes = [...new Set([...(row.contentTypes || []), "image"])];
-  if (response.targetUrl) row.linkTargetUrl = response.targetUrl;
+  if (targetUrl) row.linkTargetUrl = targetUrl;
   await putMany("posts", [row]);
   if (state.view === "gallery" || state.view === "compact") render();
 }
@@ -199,7 +224,7 @@ function mediaCell(row, compact = false) {
     loadImage(image, media.url, () => image.closest("." + className)?.classList.add("media-error"));
     return element("a", { className, href: row.url || media.url, target: "_blank", rel: "noreferrer" }, [image]);
   }
-  const hasPreviewLink = Boolean(previewCandidate(row));
+  const hasPreviewLink = previewCandidates(row).length > 0;
   if (hasPreviewLink && !previewFailed.has(row.id)) {
     hydrateLinkPreview(row);
     return element("div", { className: className + " media-loading", text: compact ? "读取中…" : "正在读取链接预览…" });

@@ -283,9 +283,10 @@ function makeCard(row) {
     return element("article", { className: "bookmark-card" }, [author, folderCell, textLink, isUser ? element("div", { className: "compact-media media-empty", text: "—" }) : mediaCell(row, true)]);
   }
   const children = [author];
-  if (state.view === "gallery") children.push(mediaCell(row));
+  const textOnly = !displayMedia(row);
+  if (state.view === "gallery" && !textOnly) children.push(mediaCell(row));
   children.push(textLink, foot);
-  return element("article", { className: "bookmark-card" }, children);
+  return element("article", { className: state.view === "gallery" && textOnly ? "bookmark-card text-only" : "bookmark-card" }, children);
 }
 
 function renderStats(rows) {

@@ -108,6 +108,7 @@ h2 { font-size: 28px; }
 .gallery { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .gallery .bookmark-card { padding: 10px; }
 .gallery .bookmark-text { display: -webkit-box; margin: 12px 4px 15px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: 14px; }
+.gallery .bookmark-card.text-only .bookmark-text { -webkit-line-clamp: 12; }
 .gallery .author, .gallery .card-foot { margin: 0 4px; }
 .card-foot { display: flex; align-items: center; gap: 7px; margin-top: auto; color: var(--faint); font-size: 11px; }
 .folder-select { max-width: 120px; margin-left: auto; padding: 3px 7px; color: var(--muted); background: var(--paper-2); border: 0; border-radius: 99px; font-size: 11px; }

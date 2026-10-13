@@ -17,3 +17,16 @@ export function profileUrl(category, screenName) {
 export function needsProfileUrl(category) {
   return Object.hasOwn(PROFILE_ROUTES, category);
 }
+
+export function extractScreenName(html) {
+  const patterns = [
+    /android-app:\/\/com\.twitter\.android\/twitter\/user\?screen_name=([A-Za-z0-9_]{1,15})/,
+    /"screen_name":"([A-Za-z0-9_]{1,15})"/,
+    /"screenName":"([A-Za-z0-9_]{1,15})"/
+  ];
+  for (const pattern of patterns) {
+    const match = String(html || "").match(pattern);
+    if (isScreenName(match?.[1])) return match[1];
+  }
+  return null;
+}

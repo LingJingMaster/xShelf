@@ -21,6 +21,7 @@ const state = {
   folder: "all",
   view: "compact",
   filters: { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false },
+  captureWaitId: 0,
   syncReady: false,
   captureCategories: {},
   awaitingCapture: false,
@@ -352,6 +353,14 @@ async function syncCategory(categoryOverride = state.category) {
   const captureCategory = config.syncCategory || category;
   if (!state.captureCategories[captureCategory]) {
     state.awaitingCapture = true;
+    const waitId = ++state.captureWaitId;
+    setTimeout(() => {
+      if (state.captureWaitId !== waitId || !state.awaitingCapture) return;
+      state.awaitingCapture = false;
+      $("#syncLight").classList.remove("busy");
+      refreshCaptureStatus();
+      showToast("没有识别到对应的 X 列表请求。请确认已经登录 X，然后重试。");
+    }, 20000);
     $("#syncLight").classList.add("busy");
     $("#syncLabel").textContent = "正在连接" + config.label;
     $("#syncMeta").textContent = "捕获成功后会自动返回并同步";
@@ -543,6 +552,7 @@ async function importFile(file, backupMode = false) {
 
 function handleRuntimeMessage(message) {
   if (message?.type === "sync-capture-ready") {
+    state.captureWaitId += 1;
     state.awaitingCapture = false;
     $("#syncLight").classList.remove("busy");
     state.category = message.category || state.category;
@@ -551,6 +561,7 @@ function handleRuntimeMessage(message) {
     refreshCaptureStatus().then(() => syncCategory(state.category));
   }
   if (message?.type === "sync-capture-cancelled") {
+    state.captureWaitId += 1;
     state.awaitingCapture = false;
     $("#syncLight").classList.remove("busy");
     refreshCaptureStatus();

@@ -19,6 +19,7 @@ function makeChrome() {
     webRequest: { onBeforeSendHeaders: { addListener: listener => { listeners.request = listener; } } },
     tabs: {
       onRemoved: { addListener: listener => { listeners.removed = listener; } },
+      onUpdated: { addListener: listener => { listeners.updated = listener; } },
       query: async () => [],
       create: async options => { calls.created.push(options); return { id: 22, windowId: 2 }; },
       update: async (id, options) => { calls.updated.push([id, options]); return { id, windowId: id === 11 ? 1 : 2 }; },

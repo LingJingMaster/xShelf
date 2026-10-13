@@ -1,6 +1,6 @@
 import { categoryFromUrl } from "./lib/x-capture.js";
 import { extractPreviewImage, isAllowedPreviewUrl } from "./lib/link-preview.js";
-import { isScreenName, needsProfileUrl, profileUrl } from "./lib/profile-url.js";
+import { extractScreenName, isScreenName, needsProfileUrl, profileUrl } from "./lib/profile-url.js";
 
 const APP_URL = chrome.runtime.getURL("app.html");
 const CAPTURED_KEY = "xRequestTemplates";
@@ -46,7 +46,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
       await completePendingCapture(category);
     });
   },
-  { urls: ["https://x.com/i/api/graphql/*"] },
+  { urls: ["https://x.com/i/api/graphql/*", "https://api.x.com/graphql/*"] },
   ["requestHeaders", "extraHeaders"]
 );
 
@@ -83,14 +83,50 @@ async function resolveScreenName() {
   if (isScreenName(cached)) return cached;
   const templates = await getTemplates();
   const capture = Object.values(templates).find(item => item?.headers?.authorization && item?.headers?.["x-csrf-token"]);
-  if (!capture) return null;
-  const response = await fetch("https://x.com/i/api/1.1/account/settings.json", {
-    credentials: "include",
-    headers: { ...capture.headers, accept: "application/json" }
-  });
-  if (!response.ok) return null;
-  const data = await response.json();
-  return rememberScreenName(data.screen_name);
+  if (capture) {
+    try {
+      const response = await fetch("https://x.com/i/api/1.1/account/settings.json", {
+        credentials: "include",
+        signal: AbortSignal.timeout(4000),
+        headers: {
+          accept: "application/json",
+          authorization: capture.headers.authorization,
+          "x-csrf-token": capture.headers["x-csrf-token"],
+          "x-twitter-active-user": "yes",
+          "x-twitter-auth-type": capture.headers["x-twitter-auth-type"] || "OAuth2Session"
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const name = await rememberScreenName(data.screen_name);
+        if (name) return name;
+      }
+    } catch {}
+  }
+  try {
+    const response = await fetch("https://x.com/home", { credentials: "include", signal: AbortSignal.timeout(6000) });
+    if (response.ok) {
+      const name = await rememberScreenName(extractScreenName(await response.text()));
+      if (name) return name;
+    }
+  } catch {}
+  return null;
+}
+
+async function readScreenNameFromTab(tabId) {
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const href = document.querySelector("a[data-testid='AppTabBar_Profile_Link'], a[aria-label='Profile'], a[aria-label='个人资料']")?.getAttribute("href") || "";
+        const name = href.split("/").filter(Boolean)[0] || "";
+        return /^[A-Za-z0-9_]{1,15}$/.test(name) ? name : "";
+      }
+    });
+    return result?.result || "";
+  } catch {
+    return "";
+  }
 }
 
 async function continuePendingProfile(screenName) {
@@ -133,6 +169,14 @@ async function beginSyncCapture(message, sender) {
   await chrome.tabs.update(xTab.id, { url: target.toString() });
   return { opened: true, awaitProfile };
 }
+
+chrome.tabs.onUpdated.addListener(async (tabId, info) => {
+  if (info.status !== "complete") return;
+  const pending = (await chrome.storage.session.get(PENDING_SYNC_KEY))[PENDING_SYNC_KEY];
+  if (!pending?.awaitProfile || pending.xTabId !== tabId) return;
+  const name = await rememberScreenName(await readScreenNameFromTab(tabId));
+  if (name) await continuePendingProfile(name);
+});
 
 chrome.tabs.onRemoved.addListener(async tabId => {
   const stored = await chrome.storage.session.get(PENDING_SYNC_KEY);

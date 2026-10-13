@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "xShelf",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Locally sync, search, organize, and export your X bookmarks, likes, posts, and relationships.",
-  "permissions": ["downloads", "storage", "unlimitedStorage", "webRequest", "declarativeNetRequest"],
-  "host_permissions": ["https://x.com/*", "https://twitter.com/*", "https://t.co/*", "https://pbs.twimg.com/*", "https://video.twimg.com/*"],
+  "permissions": ["downloads", "scripting", "storage", "unlimitedStorage", "webRequest", "declarativeNetRequest"],
+  "host_permissions": ["https://x.com/*", "https://twitter.com/*", "https://api.x.com/*", "https://t.co/*", "https://pbs.twimg.com/*", "https://video.twimg.com/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: blob: https://pbs.twimg.com; media-src 'self' blob: https://pbs.twimg.com https://video.twimg.com; connect-src 'self' https://x.com https://twitter.com https://t.co https://pbs.twimg.com https://video.twimg.com"
   },

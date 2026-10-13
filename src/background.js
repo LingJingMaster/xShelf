@@ -245,16 +245,25 @@ async function fetchImageData(value) {
   return { dataUrl: "data:" + contentType + ";base64," + btoa(binary) };
 }
 
-async function resolveLinkPreview(value) {
-  if (!isAllowedPreviewUrl(value)) throw new Error("Only t.co and X links can be previewed.");
-  const response = await fetch(value, { redirect: "follow", credentials: "include" });
+async function readPreview(value, credentials) {
+  const response = await fetch(value, { redirect: "follow", credentials, signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error("Preview page returned HTTP " + response.status + ".");
   if (!isAllowedPreviewUrl(response.url)) throw new Error("Preview redirected outside X.");
   const contentType = response.headers.get("content-type") || "";
   if (contentType.startsWith("image/")) return { imageUrl: response.url, targetUrl: response.url };
   if (!contentType.includes("text/html")) return { imageUrl: null, targetUrl: response.url };
-  const html = await response.text();
-  return { imageUrl: extractPreviewImage(html), targetUrl: response.url };
+  return { imageUrl: extractPreviewImage(await response.text()), targetUrl: response.url };
+}
+
+async function resolveLinkPreview(value) {
+  if (!isAllowedPreviewUrl(value)) throw new Error("Only t.co and X links can be previewed.");
+  const preview = await readPreview(value, "omit");
+  if (preview.imageUrl) return preview;
+  try {
+    const signedIn = await readPreview(value, "include");
+    if (signedIn.imageUrl) return signedIn;
+  } catch {}
+  return preview;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

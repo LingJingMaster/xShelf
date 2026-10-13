@@ -17,17 +17,24 @@ function decodeHtml(value) {
     .replace(/&#(\d+);/g, (_match, code) => String.fromCodePoint(Number(code)));
 }
 
+function xImageUrl(value) {
+  try {
+    const url = new URL(decodeHtml(value));
+    if (url.protocol === "https:" && (url.hostname === "pbs.twimg.com" || url.hostname.endsWith(".twimg.com"))) return url.toString();
+  } catch {}
+  return null;
+}
+
 export function extractPreviewImage(html) {
-  const tags = html.match(/<meta\s+[^>]*>/gi) || [];
+  const source = String(html || "");
+  const tags = source.match(/<meta\s+[^>]*>/gi) || [];
   for (const tag of tags) {
     if (!/(?:property|name)=["'](?:og:image|og:image:secure_url|twitter:image)["']/i.test(tag)) continue;
     const content = tag.match(/content=["']([^"']+)["']/i)?.[1];
-    if (!content) continue;
-    const decoded = decodeHtml(content);
-    try {
-      const url = new URL(decoded);
-      if (url.protocol === "https:" && (url.hostname === "pbs.twimg.com" || url.hostname.endsWith(".twimg.com"))) return url.toString();
-    } catch {}
+    const image = content && xImageUrl(content);
+    if (image) return image;
   }
-  return null;
+  const srcset = source.match(/imageSrcSet=["']([^"']+)["']/i)?.[1] || "";
+  const candidates = srcset.split(",").map(item => item.trim().split(/\s+/)[0]).filter(Boolean);
+  return candidates.map(xImageUrl).find(url => url?.includes("name=large")) || candidates.map(xImageUrl).find(Boolean) || null;
 }

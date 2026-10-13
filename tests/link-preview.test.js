@@ -18,6 +18,11 @@ test("extracts and decodes X og:image metadata", () => {
   );
 });
 
+test("reads the large image from the current X status page", () => {
+  const html = '<link rel="preload" as="image" imageSrcSet="https://pbs.twimg.com/media/HUfdNF0aYAEdrXE?format=webp&amp;name=small 680w, https://pbs.twimg.com/media/HUfdNF0aYAEdrXE?format=webp&amp;name=large 2048w">';
+  assert.equal(extractPreviewImage(html), "https://pbs.twimg.com/media/HUfdNF0aYAEdrXE?format=webp&name=large");
+});
+
 test("rejects non-X image metadata", () => {
   assert.equal(extractPreviewImage('<meta property="og:image" content="https://example.com/tracker.png">'), null);
 });

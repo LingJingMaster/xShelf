@@ -9,7 +9,9 @@ test("recognizes every supported X timeline operation", () => {
   assert.equal(categoryFromUrl(endpoint("Likes")), "like");
   assert.equal(categoryFromUrl(endpoint("UserLikes")), "like");
   assert.equal(categoryFromUrl(endpoint("UserTweets")), "post");
+  assert.equal(categoryFromUrl(endpoint("UserOriginalsTimeline")), "post");
   assert.equal(categoryFromUrl(endpoint("UserTweetsAndReplies")), "reply");
+  assert.equal(categoryFromUrl(endpoint("UserRepliesTimeline")), "reply");
   assert.equal(categoryFromUrl(endpoint("Following")), "following");
   assert.equal(categoryFromUrl(endpoint("Followers")), "follower");
   assert.equal(categoryFromUrl(endpoint("BlockedAccountsAll")), "blocked");

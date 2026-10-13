@@ -8,7 +8,7 @@ intentionally explicit so UI labels do not get mistaken for working features.
 | Integrated sync handoff | Implemented | Opens X in a temporary tab, returns to the originating xShelf tab, closes the temporary tab, and starts sync automatically after capture |
 | Bookmarks sync | Implemented | Captures `Bookmarks`, paginates, stores in `posts` |
 | Likes sync | Implemented | Opens `/i/history/likes`; captures both `Likes` and `UserLikes`; stored separately from bookmarks |
-| Posts and replies sync | Implemented | Posts capture `UserTweets` from `/{screenName}`; replies capture only replies from `/{screenName}/with_replies`. The screen name comes from the signed-in session |
+| Posts and replies sync | Implemented | Posts capture `UserOriginalsTimeline` from `/{screenName}`; replies capture `UserRepliesTimeline` from `/{screenName}/with_replies`. Older `UserTweets` names are still accepted |
 | Following sync | Implemented | Captures `Following`, stores normalized users |
 | Followers sync | Implemented | Captures `Followers`, stores normalized users |
 | Blocked accounts sync | Implemented | Captures `BlockedAccountsAll`, stores normalized users |

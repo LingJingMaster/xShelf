@@ -1,6 +1,6 @@
 {
   "name": "xshelf",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "type": "module",
   "description": "A local-first shelf for your X bookmarks.",

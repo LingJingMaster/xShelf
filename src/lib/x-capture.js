@@ -4,7 +4,9 @@ export const OPERATION_CATEGORY = Object.freeze({
   Likes: "like",
   UserLikes: "like",
   UserTweets: "post",
+  UserOriginalsTimeline: "post",
   UserTweetsAndReplies: "reply",
+  UserRepliesTimeline: "reply",
   Followers: "follower",
   Following: "following",
   BlockedAccountsAll: "blocked"

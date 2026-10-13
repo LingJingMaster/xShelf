@@ -46,7 +46,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
       await completePendingCapture(category);
     });
   },
-  { urls: ["https://x.com/i/api/graphql/*", "https://api.x.com/graphql/*"] },
+  { urls: ["https://x.com/i/api/graphql/*", "https://api.x.com/graphql/*", "https://api.x.com/i/api/graphql/*"] },
   ["requestHeaders", "extraHeaders"]
 );
 

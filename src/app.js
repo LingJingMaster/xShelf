@@ -360,7 +360,7 @@ async function syncCategory(categoryOverride = state.category) {
       $("#syncLight").classList.remove("busy");
       refreshCaptureStatus();
       showToast("没有识别到对应的 X 列表请求。请确认已经登录 X，然后重试。");
-    }, 20000);
+    }, 30000);
     $("#syncLight").classList.add("busy");
     $("#syncLabel").textContent = "正在连接" + config.label;
     $("#syncMeta").textContent = "捕获成功后会自动返回并同步";

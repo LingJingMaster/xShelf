@@ -385,7 +385,7 @@ async function syncCategory(categoryOverride = state.category) {
   const collection = config.store === "users" ? state.users : state.posts;
   const known = new Map(collection.filter(row => (row.category || "bookmark") === captureCategory).map(row => [row.id, row]));
   let cursor = null;
-  let previousCursor = null;
+  const seenCursors = new Set();
   let added = 0;
   let pages = 0;
   try {
@@ -416,10 +416,10 @@ async function syncCategory(categoryOverride = state.category) {
         ...known.values()
       ];
       render();
-      const noMoreUsers = USER_CATEGORIES.has(category) && pages > 0 && newOnPage === 0;
+      const noMoreUsers = USER_CATEGORIES.has(category) && newOnPage === 0;
       const noMorePosts = !USER_CATEGORIES.has(category) && pages > 1 && newOnPage < 10;
-      if (!parsed.cursor || parsed.cursor === previousCursor || !parsed.rows.length || noMoreUsers || noMorePosts) break;
-      previousCursor = cursor;
+      if (!parsed.cursor || seenCursors.has(parsed.cursor) || !parsed.rows.length || noMoreUsers || noMorePosts) break;
+      seenCursors.add(parsed.cursor);
       cursor = parsed.cursor;
     }
     showToast(CATEGORIES[category].label + "同步完成：新增 " + added + " 条，读取 " + pages + " 页。");

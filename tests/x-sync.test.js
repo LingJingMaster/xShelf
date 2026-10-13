@@ -126,8 +126,21 @@ test("pages relationship timelines with the cursor from the populated instructio
     }
   };
   const result = parseTimelineResponse(payload, "follower");
-  assert.equal(result.rows[0].authorHandle, "@ada");
+  assert.equal(result.rows.map(row => row.authorHandle).join(","), "@ada");
   assert.equal(result.cursor, "followers-cursor");
+});
+
+test("does not mix suggested users into the followers timeline", () => {
+  const payload = {
+    data: {
+      sidebar: { instructions: [{ entries: [{ content: { itemContent: { user_results: { result: { rest_id: "99", core: { name: "Suggested", screen_name: "suggested" } } } } } }] }] },
+      followers_timeline: { timeline: { instructions: [{ entries: [
+        { content: { itemContent: { user_results: { result: { rest_id: "3", core: { name: "Ada", screen_name: "ada" } } } } } }
+      ] }] } }
+    }
+  };
+  const result = parseTimelineResponse(payload, "follower");
+  assert.deepEqual(result.rows.map(row => row.userId), ["3"]);
 });
 
 test("keeps the captured relationship page size when adding a cursor", () => {

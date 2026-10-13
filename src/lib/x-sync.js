@@ -33,6 +33,21 @@ function findBottomCursor(node) {
   return null;
 }
 
+const USER_TIMELINE_KEYS = Object.freeze({ follower: ["followers_timeline"], following: ["following_timeline"] });
+
+function scopedTimeline(payload, category) {
+  const keys = USER_TIMELINE_KEYS[category];
+  if (!keys) return payload;
+  const matches = [];
+  function walk(node) {
+    if (!node || typeof node !== "object") return;
+    for (const key of keys) if (node[key]) matches.push(node[key]);
+    for (const value of Object.values(node)) walk(value);
+  }
+  walk(payload);
+  return matches.length ? matches : payload;
+}
+
 function timelineCursor(payload) {
   const candidates = [];
   function walk(node) {
@@ -237,7 +252,8 @@ export function normalizeUser(raw, category) {
 
 export function parseTimelineResponse(payload, category = "bookmark") {
   const userCategory = ["following", "follower", "blocked"].includes(category);
-  const rawRows = findResults(payload, userCategory ? "user_results" : "tweet_results");
+  const scoped = scopedTimeline(payload, category);
+  const rawRows = findResults(scoped, userCategory ? "user_results" : "tweet_results");
   const normalize = userCategory ? raw => normalizeUser(raw, category) : raw => normalizeTweet(raw, category);
   const seen = new Set();
   const rows = rawRows.map(normalize).filter(row => {
@@ -247,7 +263,7 @@ export function parseTimelineResponse(payload, category = "bookmark") {
     seen.add(row.id);
     return true;
   });
-  return { rows, cursor: timelineCursor(payload), store: userCategory ? "users" : "posts" };
+  return { rows, cursor: timelineCursor(scoped), store: userCategory ? "users" : "posts" };
 }
 
 export function parseBookmarksResponse(payload) {

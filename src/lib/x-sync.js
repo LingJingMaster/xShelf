@@ -33,6 +33,39 @@ function findBottomCursor(node) {
   return null;
 }
 
+function timelineCursor(payload) {
+  const candidates = [];
+  function walk(node) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node.instructions)) {
+      for (const instruction of node.instructions) {
+        const entries = [
+          ...(Array.isArray(instruction.entries) ? instruction.entries : []),
+          ...(instruction.entry ? [instruction.entry] : [])
+        ];
+        const cursor = entries.map(entry => entry?.content).find(content => content?.cursorType === "Bottom" && content.value)?.value;
+        if (!cursor) continue;
+        const users = entries.reduce((sum, entry) => sum + findResults(entry, "user_results").length, 0);
+        candidates.push({ cursor, users });
+      }
+    }
+    for (const value of Object.values(node)) walk(value);
+  }
+  walk(payload);
+  return candidates.sort((a, b) => a.users - b.users).at(-1)?.cursor || findBottomCursor(payload);
+}
+
+export function nextTimelineUrl(templateUrl, cursor) {
+  const url = new URL(templateUrl);
+  const variables = JSON.parse(url.searchParams.get("variables") || "{}");
+  if (!Number.isInteger(variables.count) || variables.count <= 0) variables.count = 20;
+  if (cursor) variables.cursor = cursor;
+  else delete variables.cursor;
+  if ("includePromotedContent" in variables) variables.includePromotedContent = false;
+  url.searchParams.set("variables", JSON.stringify(variables));
+  return url.toString();
+}
+
 function userFields(raw) {
   const user = unwrapUser(raw) || {};
   const legacy = user.legacy || {};
@@ -214,7 +247,7 @@ export function parseTimelineResponse(payload, category = "bookmark") {
     seen.add(row.id);
     return true;
   });
-  return { rows, cursor: findBottomCursor(payload), store: userCategory ? "users" : "posts" };
+  return { rows, cursor: timelineCursor(payload), store: userCategory ? "users" : "posts" };
 }
 
 export function parseBookmarksResponse(payload) {

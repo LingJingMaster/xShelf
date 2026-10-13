@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseBookmarksResponse, parseTimelineResponse } from "../src/lib/x-sync.js";
+import { nextTimelineUrl, parseBookmarksResponse, parseTimelineResponse } from "../src/lib/x-sync.js";
 
 const tweetResult = {
   __typename: "Tweet",
@@ -113,4 +113,28 @@ test("normalizes current user identity fields without legacy names", () => {
   assert.equal(result.rows[0].authorName, "New Shape");
   assert.equal(result.rows[0].authorHandle, "@new_shape");
   assert.equal(result.rows[0].avatarUrl, "https://pbs.twimg.com/profile_images/9/new.jpg");
+});
+
+test("pages relationship timelines with the cursor from the populated instruction", () => {
+  const payload = {
+    data: {
+      viewer: { timeline: { instructions: [{ entries: [{ content: { cursorType: "Bottom", value: "sidebar-cursor" } }] }] } },
+      followers_timeline: { timeline: { instructions: [{ entries: [
+        { content: { itemContent: { user_results: { result: { rest_id: "3", core: { name: "Ada", screen_name: "ada" } } } } } },
+        { content: { cursorType: "Bottom", value: "followers-cursor" } }
+      ] }] } }
+    }
+  };
+  const result = parseTimelineResponse(payload, "follower");
+  assert.equal(result.rows[0].authorHandle, "@ada");
+  assert.equal(result.cursor, "followers-cursor");
+});
+
+test("keeps the captured relationship page size when adding a cursor", () => {
+  const template = "https://x.com/i/api/graphql/id/followersQuery?variables=" + encodeURIComponent(JSON.stringify({ screenName: "LingJingMaster", count: 50 }));
+  const next = new URL(nextTimelineUrl(template, "followers-cursor"));
+  const variables = JSON.parse(next.searchParams.get("variables"));
+  assert.equal(variables.count, 50);
+  assert.equal(variables.cursor, "followers-cursor");
+  assert.equal(variables.screenName, "LingJingMaster");
 });

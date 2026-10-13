@@ -9,7 +9,7 @@ intentionally explicit so UI labels do not get mistaken for working features.
 | Bookmarks sync | Implemented | Captures `Bookmarks`, paginates, stores in `posts` |
 | Likes sync | Implemented | Opens `/i/history/likes`; captures both `Likes` and `UserLikes`; stored separately from bookmarks |
 | Posts and replies sync | Implemented | Posts capture `UserOriginalsTimeline` from `/{screenName}`; replies capture `UserRepliesTimeline` from `/{screenName}/with_replies`. Older `UserTweets` names are still accepted |
-| Following sync | Implemented | Captures `Following`, stores normalized users |
+| Following sync | Implemented | Captures `followingQuery`, preserves the original page size, and follows the cursor belonging to that user list |
 | Followers sync | Implemented | Captures `Followers`, stores normalized users |
 | Blocked accounts sync | Implemented | Captures `BlockedAccountsAll`, stores normalized users |
 | Search | Implemented | Phrase, `and`, `or`, `*`; names/descriptions included for users |

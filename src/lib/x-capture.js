@@ -8,7 +8,9 @@ export const OPERATION_CATEGORY = Object.freeze({
   UserTweetsAndReplies: "reply",
   UserRepliesTimeline: "reply",
   Followers: "follower",
+  followersQuery: "follower",
   Following: "following",
+  followingQuery: "following",
   BlockedAccountsAll: "blocked"
 });
 

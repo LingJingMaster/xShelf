@@ -389,7 +389,8 @@ async function syncCategory(categoryOverride = state.category) {
   let added = 0;
   let pages = 0;
   try {
-    while (!state.stopSync && pages < 50) {
+    const pageLimit = USER_CATEGORIES.has(category) ? 200 : 50;
+    while (!state.stopSync && pages < pageLimit) {
       $("#syncMeta").textContent = "正在读取第 " + (pages + 1) + " 页";
       const response = await runtimeMessage({ type: "fetch-timeline-page", category: captureCategory, cursor });
       if (!response?.ok) throw new Error(response?.error || "同步失败");
@@ -415,7 +416,9 @@ async function syncCategory(categoryOverride = state.category) {
         ...known.values()
       ];
       render();
-      if (!parsed.cursor || parsed.cursor === previousCursor || !parsed.rows.length || (pages > 1 && newOnPage < 10)) break;
+      const noMoreUsers = USER_CATEGORIES.has(category) && pages > 0 && newOnPage === 0;
+      const noMorePosts = !USER_CATEGORIES.has(category) && pages > 1 && newOnPage < 10;
+      if (!parsed.cursor || parsed.cursor === previousCursor || !parsed.rows.length || noMoreUsers || noMorePosts) break;
       previousCursor = cursor;
       cursor = parsed.cursor;
     }

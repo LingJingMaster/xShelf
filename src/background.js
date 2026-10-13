@@ -1,4 +1,5 @@
 import { categoryFromUrl } from "./lib/x-capture.js";
+import { nextTimelineUrl } from "./lib/x-sync.js";
 import { extractPreviewImage, isAllowedPreviewUrl } from "./lib/link-preview.js";
 import { extractScreenName, isScreenName, needsProfileUrl, profileUrl } from "./lib/profile-url.js";
 
@@ -186,17 +187,6 @@ chrome.tabs.onRemoved.addListener(async tabId => {
   try { await chrome.runtime.sendMessage({ type: "sync-capture-cancelled", category: pending.requestedCategory }); } catch {}
 });
 
-function buildPageUrl(templateUrl, cursor) {
-  const url = new URL(templateUrl);
-  const variables = JSON.parse(url.searchParams.get("variables") || "{}");
-  variables.count = 20;
-  if (cursor) variables.cursor = cursor;
-  else delete variables.cursor;
-  if ("includePromotedContent" in variables) variables.includePromotedContent = false;
-  url.searchParams.set("variables", JSON.stringify(variables));
-  return url.toString();
-}
-
 async function getTemplates() {
   const stored = await chrome.storage.session.get([CAPTURED_KEY, LEGACY_CAPTURED_KEY]);
   const templates = stored[CAPTURED_KEY] || {};
@@ -214,7 +204,7 @@ async function fetchTimelinePage(category, cursor) {
   const templates = await getTemplates();
   const capture = templates[category];
   if (!capture) throw new Error("Open the matching X page once so xShelf can observe its signed-in request.");
-  const response = await fetch(buildPageUrl(capture.url, cursor), {
+  const response = await fetch(nextTimelineUrl(capture.url, cursor), {
     method: "GET",
     headers: capture.headers,
     credentials: "include"

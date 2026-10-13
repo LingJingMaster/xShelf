@@ -1,7 +1,9 @@
 export const OPERATION_CATEGORY = Object.freeze({
   Bookmarks: "bookmark",
+  bookmarksQuery: "bookmark",
   BookmarkFolderTimeline: "bookmark",
   Likes: "like",
+  likesQuery: "like",
   UserLikes: "like",
   UserTweets: "post",
   UserOriginalsTimeline: "post",

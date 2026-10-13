@@ -191,6 +191,8 @@ function templateIsCurrent(category, capture) {
   let operation = "";
   try { operation = new URL(capture?.url || "").pathname.split("/").filter(Boolean).at(-1) || ""; } catch {}
   if (category === "following") return operation === "followingQuery";
+  if (category === "like") return operation === "likesQuery";
+  if (category === "bookmark") return operation === "bookmarksQuery";
   return Boolean(capture?.url);
 }
 

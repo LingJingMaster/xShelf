@@ -1,0 +1,13 @@
+{
+  "name": "xshelf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A local-first shelf for your X bookmarks.",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/background.js && node --check src/app.js && node --check src/lib/db.js && node --check src/lib/search.js && node --check src/lib/x-sync.js",
+    "package": "npm run check && npm test && mkdir -p dist && zip -qr dist/xshelf.zip manifest.json rules.json app.html src icons README.md PRIVACY.md -x '*.DS_Store'"
+  },
+  "dependencies": { "fflate": "0.8.2" }
+}

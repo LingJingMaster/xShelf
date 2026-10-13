@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>xShelf · 本地 X 书签</title>
+  <link rel="stylesheet" href="src/app.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-row">
+        <a class="brand" href="app.html" aria-label="xShelf 首页"><span>x</span>Shelf</a>
+        <button class="icon-button mobile-only" id="closeNav" aria-label="关闭目录">×</button>
+      </div>
+      <button class="sync-card" id="syncButton">
+        <span class="sync-light" id="syncLight"></span>
+        <span><b id="syncLabel">连接 X</b><small id="syncMeta">等待书签请求</small></span>
+      </button>
+      <nav class="primary-nav" aria-label="资料类型">
+        <button class="nav-item active"><span>书签</span><small id="totalCount">0</small></button>
+      </nav>
+      <div class="folder-head"><span>文件夹</span><button id="newFolder" aria-label="新建文件夹">＋</button></div>
+      <nav id="folderList" class="folder-list" aria-label="文件夹"></nav>
+      <div class="sidebar-foot">
+        <button class="text-button" id="importButton">导入资料</button>
+        <button class="text-button" id="backupButton">备份与恢复</button>
+        <p>只存于这台浏览器</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-button mobile-only" id="openNav" aria-label="打开目录">☰</button>
+        <label class="search-field">
+          <span aria-hidden="true">⌕</span>
+          <input id="searchInput" type="search" autocomplete="off" placeholder="搜索文字、短语，或试试 claude and code">
+          <kbd>/</kbd>
+        </label>
+        <button class="quiet-button" id="filterButton">筛选 <span id="filterCount"></span></button>
+        <button class="ink-button" id="exportButton">导出</button>
+      </header>
+
+      <section class="shelf-head">
+        <div><p id="contextLabel">全部书签</p><h1 id="pageTitle">你的书签架</h1></div>
+        <div class="view-switch" role="group" aria-label="视图">
+          <button data-view="cards" aria-pressed="true" title="卡片视图">▦</button>
+          <button data-view="compact" aria-pressed="false" title="紧凑视图">☷</button>
+          <button data-view="stats" aria-pressed="false" title="统计视图">◒</button>
+        </div>
+      </section>
+
+      <div class="notice hidden" id="notice"></div>
+      <section id="stage" class="card-grid" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <dialog id="filterDialog">
+    <form method="dialog" class="dialog-card" id="filterForm">
+      <div class="dialog-head"><div><p>缩小范围</p><h2>筛选书签</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <div class="form-grid">
+        <label>内容类型<select name="contentType"><option value="all">全部</option><option value="image">图片</option><option value="video">视频</option><option value="gif">GIF</option><option value="article">文章</option></select></label>
+        <label>帖子类型<select name="postType"><option value="all">全部</option><option value="post">普通帖子</option><option value="reply">回复</option><option value="quote">引用</option><option value="repost">转帖</option></select></label>
+        <label>开始日期<input name="startDate" type="date"></label>
+        <label>结束日期<input name="endDate" type="date"></label>
+        <label class="check-row"><input name="oldest" type="checkbox"> 最早的排在前面</label>
+      </div>
+      <div class="dialog-actions"><button class="quiet-button" id="clearFilters" type="button">清除</button><button class="ink-button" value="apply">应用筛选</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="exportDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><div><p>带走你的资料</p><h2>导出当前范围</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <div class="choice-list">
+        <button type="button" data-export="json"><b>JSON</b><span>完整字段，适合迁移和再处理</span></button>
+        <button type="button" data-export="csv"><b>CSV</b><span>适合电子表格</span></button>
+        <button type="button" data-export="html"><b>HTML</b><span>无需扩展也能打开的阅读页</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="backupDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><div><p>本地副本</p><h2>备份与恢复</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <p class="explain">备份是 ZIP 文件，里面保存明文 JSONL。请把它放在你信任的位置。</p>
+      <div class="split-actions"><button class="ink-button" type="button" id="createBackup">下载备份</button><label class="quiet-button file-label">恢复备份<input id="restoreInput" type="file" accept=".zip,application/zip"></label></div>
+    </form>
+  </dialog>
+
+  <input id="importInput" type="file" accept=".json,.jsonl,.zip,application/json,application/zip" hidden>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="src/vendor/fflate.js"></script>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "xShelf",
+  "version": "0.1.0",
+  "description": "Search, organize, export, and back up your X bookmarks locally.",
+  "permissions": ["downloads", "storage", "unlimitedStorage", "webRequest", "declarativeNetRequest"],
+  "host_permissions": ["https://x.com/*"],
+  "background": { "service_worker": "src/background.js", "type": "module" },
+  "action": { "default_title": "Open xShelf" },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "declarative_net_request": { "rule_resources": [{ "id": "xshelf_origin", "enabled": true, "path": "rules.json" }] }
+}

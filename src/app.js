@@ -1,4 +1,4 @@
-import { dumpDatabase, getAll, putMany, remove, restoreDatabase } from "./lib/db.js";
+import { clearAll, dumpDatabase, getAll, putMany, remove, restoreDatabase } from "./lib/db.js";
 import { filterPosts } from "./lib/search.js";
 import { isAllowedPreviewUrl } from "./lib/link-preview.js";
 import { parseTimelineResponse } from "./lib/x-sync.js";
@@ -10,10 +10,9 @@ const CATEGORIES = {
   post: { label: "推文", singular: "推文", store: "posts", openUrl: "https://x.com/home", instruction: "打开当前账号的 X 主页" },
   reply: { label: "回复", singular: "回复", store: "posts", openUrl: "https://x.com/home", instruction: "打开当前账号的 X 回复页" },
   following: { label: "正在关注", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开当前账号正在关注的人" },
-  follower: { label: "关注者", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开当前账号的关注者" },
   blocked: { label: "已屏蔽", singular: "用户", store: "users", openUrl: "https://x.com/settings/blocked/all", instruction: "打开 X 的已屏蔽账号设置" }
 };
-const USER_CATEGORIES = new Set(["following", "follower", "blocked"]);
+const USER_CATEGORIES = new Set(["following", "blocked"]);
 const state = {
   posts: [],
   users: [],
@@ -572,6 +571,65 @@ function handleRuntimeMessage(message) {
   }
 }
 
+function systemDark() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function applyTheme() {
+  const stored = localStorage.getItem("xshelf-theme") || "system";
+  const dark = stored === "dark" || (stored === "system" && systemDark());
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  const button = $("#themeButton");
+  if (!button) return;
+  button.textContent = stored === "system" ? "深色模式：跟随浏览器" : dark ? "深色模式：开" : "深色模式：关";
+  button.setAttribute("aria-pressed", String(dark));
+}
+
+function bindTheme() {
+  applyTheme();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+  $("#themeButton").onclick = () => {
+    const stored = localStorage.getItem("xshelf-theme") || "system";
+    const next = stored === "system" ? (systemDark() ? "light" : "dark") : stored === "dark" ? "light" : "system";
+    localStorage.setItem("xshelf-theme", next);
+    applyTheme();
+  };
+}
+
+function resetClearDialog() {
+  $("#clearWarning").hidden = false;
+  $("#clearFinal").hidden = true;
+  $("#confirmClear").textContent = "我已了解风险";
+  $("#confirmClear").dataset.step = "warn";
+}
+
+async function bindClearData() {
+  resetClearDialog();
+  $("#clearButton").onclick = () => {
+    resetClearDialog();
+    $("#clearDialog").showModal();
+  };
+  $("#confirmClear").onclick = async () => {
+    if ($("#confirmClear").dataset.step !== "final") {
+      $("#clearWarning").hidden = true;
+      $("#clearFinal").hidden = false;
+      $("#confirmClear").textContent = "确认清空";
+      $("#confirmClear").dataset.step = "final";
+      return;
+    }
+    await clearAll();
+    state.posts = [];
+    state.users = [];
+    state.category = "bookmark";
+    state.folder = "all";
+    $("#clearDialog").close();
+    resetClearDialog();
+    render();
+    showToast("本地资料已全部清空。");
+  };
+}
+
 function bindEvents() {
   $("#openNav").onclick = () => $("#app").classList.add("nav-open");
   $("#closeNav").onclick = () => $("#app").classList.remove("nav-open");
@@ -623,6 +681,8 @@ function bindEvents() {
 }
 
 async function start() {
+  bindTheme();
+  bindClearData();
   bindEvents();
   state.posts = await getAll("posts");
   state.users = await getAll("users");

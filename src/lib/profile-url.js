@@ -1,8 +1,7 @@
 const PROFILE_ROUTES = Object.freeze({
   post: "",
   reply: "/with_replies",
-  following: "/following",
-  follower: "/followers"
+  following: "/following"
 });
 
 export function isScreenName(value) {

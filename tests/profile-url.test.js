@@ -6,7 +6,7 @@ test("builds account-specific post and reply URLs", () => {
   assert.equal(profileUrl("post", "LingJingMaster"), "https://x.com/LingJingMaster");
   assert.equal(profileUrl("reply", "LingJingMaster"), "https://x.com/LingJingMaster/with_replies");
   assert.equal(profileUrl("following", "LingJingMaster"), "https://x.com/LingJingMaster/following");
-  assert.equal(profileUrl("follower", "LingJingMaster"), "https://x.com/LingJingMaster/followers");
+  assert.equal(profileUrl("follower", "LingJingMaster"), null);
 });
 
 test("reads the signed-in screen name from X page HTML", () => {

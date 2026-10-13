@@ -190,7 +190,6 @@ chrome.tabs.onRemoved.addListener(async tabId => {
 function templateIsCurrent(category, capture) {
   let operation = "";
   try { operation = new URL(capture?.url || "").pathname.split("/").filter(Boolean).at(-1) || ""; } catch {}
-  if (category === "follower") return operation === "followersQuery";
   if (category === "following") return operation === "followingQuery";
   return Boolean(capture?.url);
 }

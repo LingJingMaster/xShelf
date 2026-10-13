@@ -7,8 +7,6 @@ export const OPERATION_CATEGORY = Object.freeze({
   UserOriginalsTimeline: "post",
   UserTweetsAndReplies: "reply",
   UserRepliesTimeline: "reply",
-  Followers: "follower",
-  followersQuery: "follower",
   Following: "following",
   followingQuery: "following",
   BlockedAccountsAll: "blocked"

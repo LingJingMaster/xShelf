@@ -14,10 +14,7 @@ test("recognizes every supported X timeline operation", () => {
   assert.equal(categoryFromUrl(endpoint("UserRepliesTimeline")), "reply");
   assert.equal(categoryFromUrl(endpoint("Following")), "following");
   assert.equal(categoryFromUrl(endpoint("followingQuery")), "following");
-  assert.equal(categoryFromUrl(endpoint("Followers")), "follower");
-  assert.equal(categoryFromUrl(endpoint("followersQuery")), "follower");
-  assert.equal(categoryFromUrl(endpoint("verifiedFollowersQuery")), null);
-  assert.equal(categoryFromUrl(endpoint("userFollowersQuery")), null);
+  assert.equal(categoryFromUrl(endpoint("followersQuery")), null);
   assert.equal(categoryFromUrl(endpoint("BlockedAccountsAll")), "blocked");
 });
 

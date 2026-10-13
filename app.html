@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>xShelf · 本地 X 资料库</title>
   <link rel="stylesheet" href="src/app.css">
 </head>
@@ -21,14 +21,15 @@
       <nav class="primary-nav" id="categoryNav" aria-label="用户关系">
         <div class="group-label">用户关系</div>
         <button class="nav-item" data-category="following"><span>正在关注</span><small data-count="following">0</small></button>
-        <button class="nav-item" data-category="follower"><span>关注者</span><small data-count="follower">0</small></button>
         <button class="nav-item" data-category="blocked"><span>已屏蔽</span><small data-count="blocked">0</small></button>
       </nav>
       <div class="folder-head"><span>文件夹</span><button id="newFolder" aria-label="新建文件夹">＋</button></div>
       <nav id="folderList" class="folder-list" aria-label="文件夹"></nav>
       <div class="sidebar-foot">
+        <button class="text-button" id="themeButton" type="button" aria-pressed="false">深色模式</button>
         <button class="text-button" id="importButton">导入资料</button>
         <button class="text-button" id="backupButton">备份与恢复</button>
+        <button class="text-button danger-text" id="clearButton" type="button">清空所有数据</button>
         <p>只存于这台浏览器</p>
       </div>
     </aside>
@@ -95,6 +96,15 @@
       <div class="dialog-head"><div><p>本地副本</p><h2>备份与恢复</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
       <p class="explain">备份是 ZIP 文件，里面保存明文 JSONL。请把它放在你信任的位置。</p>
       <div class="split-actions"><button class="ink-button" type="button" id="createBackup">下载备份</button><label class="quiet-button file-label">恢复备份<input id="restoreInput" type="file" accept=".zip,application/zip"></label></div>
+    </form>
+  </dialog>
+
+  <dialog id="clearDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><div><p>危险操作</p><h2>清空本地资料库</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <p class="danger-copy" id="clearWarning">所有数据都会被清空。书签、喜欢、推文、回复、正在关注和已屏蔽都会从这台浏览器删除，而且不能撤销。</p>
+      <p class="danger-copy" id="clearFinal" hidden>这是最后一次确认。点击“确认清空”后，本地资料会立即永久删除。</p>
+      <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="danger-button" id="confirmClear" type="button">我已了解风险</button></div>
     </form>
   </dialog>
 

@@ -187,6 +187,14 @@ chrome.tabs.onRemoved.addListener(async tabId => {
   try { await chrome.runtime.sendMessage({ type: "sync-capture-cancelled", category: pending.requestedCategory }); } catch {}
 });
 
+function templateIsCurrent(category, capture) {
+  let operation = "";
+  try { operation = new URL(capture?.url || "").pathname.split("/").filter(Boolean).at(-1) || ""; } catch {}
+  if (category === "follower") return operation === "followersQuery";
+  if (category === "following") return operation === "followingQuery";
+  return Boolean(capture?.url);
+}
+
 async function getTemplates() {
   const stored = await chrome.storage.session.get([CAPTURED_KEY, LEGACY_CAPTURED_KEY]);
   const templates = stored[CAPTURED_KEY] || {};
@@ -196,14 +204,14 @@ async function getTemplates() {
 
 async function getCaptureStatus() {
   const templates = await getTemplates();
-  const categories = Object.fromEntries(Object.entries(templates).map(([category, capture]) => [category, capture.capturedAt]));
+  const categories = Object.fromEntries(Object.entries(templates).filter(([category, capture]) => templateIsCurrent(category, capture)).map(([category, capture]) => [category, capture.capturedAt]));
   return { ready: Object.keys(categories).length > 0, categories };
 }
 
 async function fetchTimelinePage(category, cursor) {
   const templates = await getTemplates();
   const capture = templates[category];
-  if (!capture) throw new Error("Open the matching X page once so xShelf can observe its signed-in request.");
+  if (!capture || !templateIsCurrent(category, capture)) throw new Error("Open the matching X page once so xShelf can observe its signed-in request.");
   const response = await fetch(nextTimelineUrl(capture.url, cursor), {
     method: "GET",
     headers: capture.headers,

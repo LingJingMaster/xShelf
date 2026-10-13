@@ -39,9 +39,10 @@ shape. Export and back up your data regularly.
    a temporary tab. As soon as the expected timeline request appears, it closes
    that tab, returns to the original xShelf tab, and starts pagination
    automatically. Likes opens `https://x.com/i/history/likes` directly.
-5. Posts, following, and followers may still require one click on the indicated
-   profile tab because X has no account-independent URL for those lists. The
-   return and synchronization remain automatic after that click.
+5. Posts open `https://x.com/{current-user}` and replies open
+   `https://x.com/{current-user}/with_replies`. Following and followers use the
+   same signed-in screen name. xShelf reads that name from the current X
+   session, so it is never hard-coded.
 
 No build step is required. Run `npm test` for parser tests and `npm run package`
 to create `dist/xshelf.zip`.

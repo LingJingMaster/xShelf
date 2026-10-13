@@ -193,6 +193,8 @@ export function parseTimelineResponse(payload, category = "bookmark") {
   const seen = new Set();
   const rows = rawRows.map(normalize).filter(row => {
     if (!row || seen.has(row.id)) return false;
+    if (category === "reply" && row.postType !== "reply") return false;
+    if (category === "post" && row.postType === "reply") return false;
     seen.add(row.id);
     return true;
   });

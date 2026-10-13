@@ -1,5 +1,6 @@
 import { categoryFromUrl } from "./lib/x-capture.js";
 import { extractPreviewImage, isAllowedPreviewUrl } from "./lib/link-preview.js";
+import { isScreenName, needsProfileUrl, profileUrl } from "./lib/profile-url.js";
 
 const APP_URL = chrome.runtime.getURL("app.html");
 const CAPTURED_KEY = "xRequestTemplates";
@@ -71,10 +72,48 @@ async function completePendingCapture(category) {
   } catch {}
 }
 
+async function rememberScreenName(value) {
+  if (!isScreenName(value)) return null;
+  await chrome.storage.session.set({ xScreenName: value });
+  return value;
+}
+
+async function resolveScreenName() {
+  const cached = (await chrome.storage.session.get("xScreenName")).xScreenName;
+  if (isScreenName(cached)) return cached;
+  const templates = await getTemplates();
+  const capture = Object.values(templates).find(item => item?.headers?.authorization && item?.headers?.["x-csrf-token"]);
+  if (!capture) return null;
+  const response = await fetch("https://x.com/i/api/1.1/account/settings.json", {
+    credentials: "include",
+    headers: { ...capture.headers, accept: "application/json" }
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  return rememberScreenName(data.screen_name);
+}
+
+async function continuePendingProfile(screenName) {
+  const pending = (await chrome.storage.session.get(PENDING_SYNC_KEY))[PENDING_SYNC_KEY];
+  if (!pending?.awaitProfile) return;
+  const url = profileUrl(pending.captureCategory, screenName);
+  if (!url) return;
+  pending.awaitProfile = false;
+  await chrome.storage.session.set({ [PENDING_SYNC_KEY]: pending });
+  await chrome.tabs.update(pending.xTabId, { url });
+}
+
 async function beginSyncCapture(message, sender) {
   const appTabId = sender.tab?.id;
   if (!appTabId) throw new Error("xShelf must be open in a browser tab.");
-  const target = new URL(message.url);
+  let targetUrl = message.url;
+  let awaitProfile = false;
+  if (needsProfileUrl(message.category)) {
+    const screenName = await resolveScreenName();
+    targetUrl = screenName ? profileUrl(message.category, screenName) : "https://x.com/home";
+    awaitProfile = !screenName;
+  }
+  const target = new URL(targetUrl);
   if (target.protocol !== "https:" || target.hostname !== "x.com") throw new Error("Invalid X sync page.");
   const previous = (await chrome.storage.session.get(PENDING_SYNC_KEY))[PENDING_SYNC_KEY];
   if (previous?.xTabId && previous.xTabId !== appTabId) {
@@ -87,11 +126,12 @@ async function beginSyncCapture(message, sender) {
       xTabId: xTab.id,
       captureCategory: message.category,
       requestedCategory: message.requestedCategory || message.category,
+      awaitProfile,
       startedAt: Date.now()
     }
   });
   await chrome.tabs.update(xTab.id, { url: target.toString() });
-  return { opened: true };
+  return { opened: true, awaitProfile };
 }
 
 chrome.tabs.onRemoved.addListener(async tabId => {
@@ -175,6 +215,10 @@ async function resolveLinkPreview(value) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "x-screen-name") {
+    rememberScreenName(message.screenName).then(name => name && continuePendingProfile(name));
+    return false;
+  }
   const task = message?.type === "capture-status"
     ? getCaptureStatus()
     : message?.type === "begin-sync-capture"

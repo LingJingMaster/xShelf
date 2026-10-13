@@ -7,10 +7,10 @@ const $ = selector => document.querySelector(selector);
 const CATEGORIES = {
   bookmark: { label: "书签", singular: "书签", store: "posts", openUrl: "https://x.com/i/bookmarks", instruction: "打开 X 书签页" },
   like: { label: "喜欢", singular: "喜欢", store: "posts", openUrl: "https://x.com/i/history/likes", instruction: "打开 X 的喜欢历史页" },
-  post: { label: "推文", singular: "推文", store: "posts", syncCategory: "post", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“回复”标签" },
-  reply: { label: "回复", singular: "回复", store: "posts", syncCategory: "post", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“回复”标签" },
-  following: { label: "正在关注", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“正在关注”" },
-  follower: { label: "关注者", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开你的 X 个人主页，再进入“关注者”" },
+  post: { label: "推文", singular: "推文", store: "posts", openUrl: "https://x.com/home", instruction: "打开当前账号的 X 主页" },
+  reply: { label: "回复", singular: "回复", store: "posts", openUrl: "https://x.com/home", instruction: "打开当前账号的 X 回复页" },
+  following: { label: "正在关注", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开当前账号正在关注的人" },
+  follower: { label: "关注者", singular: "用户", store: "users", openUrl: "https://x.com/home", instruction: "打开当前账号的关注者" },
   blocked: { label: "已屏蔽", singular: "用户", store: "users", openUrl: "https://x.com/settings/blocked/all", instruction: "打开 X 的已屏蔽账号设置" }
 };
 const USER_CATEGORIES = new Set(["following", "follower", "blocked"]);
@@ -80,7 +80,7 @@ function currentDataset() {
 
 function rowBelongsToCategory(row, category) {
   const storedCategory = row.category || "bookmark";
-  if (category === "reply") return storedCategory === "post" && row.postType === "reply";
+  if (category === "reply") return storedCategory === "reply" || (storedCategory === "post" && row.postType === "reply");
   if (category === "post") return storedCategory === "post" && row.postType !== "reply";
   return storedCategory === category;
 }
@@ -385,9 +385,16 @@ async function syncCategory(categoryOverride = state.category) {
       const response = await runtimeMessage({ type: "fetch-timeline-page", category: captureCategory, cursor });
       if (!response?.ok) throw new Error(response?.error || "同步失败");
       const parsed = parseTimelineResponse(response.data, captureCategory);
-      const newOnPage = parsed.rows.filter(row => !known.has(row.id)).length;
+      const legacyReplies = captureCategory === "reply"
+        ? collection.filter(row => (row.category || "bookmark") === "post" && row.postType === "reply" && parsed.rows.some(item => item.tweetId === row.tweetId))
+        : [];
+      if (legacyReplies.length) {
+        await Promise.all(legacyReplies.map(row => remove("posts", row.id)));
+        legacyReplies.forEach(row => collection.splice(collection.indexOf(row), 1));
+      }
+      const newOnPage = parsed.rows.filter(row => !known.has(row.id) && !legacyReplies.some(item => item.tweetId === row.tweetId)).length;
       const merged = parsed.rows.map(row => {
-        const old = known.get(row.id);
+        const old = known.get(row.id) || legacyReplies.find(item => item.tweetId === row.tweetId);
         return old ? { ...row, folder: old.folder, savedAt: old.savedAt || old.bookmarkedAt || row.savedAt } : row;
       });
       await putMany(config.store, merged);

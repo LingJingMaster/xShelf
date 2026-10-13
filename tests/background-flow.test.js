@@ -110,3 +110,34 @@ test("opens the likes page, captures its request, and returns to xShelf", async 
 
   delete globalThis.chrome;
 });
+
+test("opens the signed-in user's separate post and reply pages", async () => {
+  const harness = makeChrome();
+  harness.session.xRequestTemplates = {
+    bookmark: { headers: { authorization: "Bearer test", "x-csrf-token": "csrf" }, url: "https://x.com/i/api/graphql/id/Bookmarks" }
+  };
+  globalThis.chrome = harness.chrome;
+  globalThis.fetch = async url => {
+    assert.equal(url, "https://x.com/i/api/1.1/account/settings.json");
+    return { ok: true, json: async () => ({ screen_name: "LingJingMaster" }) };
+  };
+  await import("../src/background.js?profile-routes");
+
+  await sendToListener(harness.listeners.message, {
+    type: "begin-sync-capture",
+    category: "post",
+    requestedCategory: "post",
+    url: "https://x.com/home"
+  }, { tab: { id: 11 } });
+  assert.equal(harness.calls.updated.at(-1)[1].url, "https://x.com/LingJingMaster");
+
+  await sendToListener(harness.listeners.message, {
+    type: "begin-sync-capture",
+    category: "reply",
+    requestedCategory: "reply",
+    url: "https://x.com/home"
+  }, { tab: { id: 11 } });
+  assert.equal(harness.calls.updated.at(-1)[1].url, "https://x.com/LingJingMaster/with_replies");
+  delete globalThis.chrome;
+  delete globalThis.fetch;
+});

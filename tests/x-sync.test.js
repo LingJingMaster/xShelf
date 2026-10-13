@@ -30,6 +30,16 @@ test("keeps likes separate from copies of the same bookmarked tweet", () => {
   assert.equal(result.rows[0].category, "like");
 });
 
+test("keeps normal posts out of the replies category", () => {
+  const normal = parseTimelineResponse(timeline({ tweet_results: { result: tweetResult } }), "reply");
+  assert.equal(normal.rows.length, 0);
+  const reply = structuredClone(tweetResult);
+  reply.legacy.in_reply_to_status_id_str = "1";
+  const result = parseTimelineResponse(timeline({ tweet_results: { result: reply } }), "reply");
+  assert.equal(result.rows[0].id, "reply_42");
+  assert.equal(result.rows[0].postType, "reply");
+});
+
 test("reads current user core/avatar fields and tweet media", () => {
   const payload = timeline({ tweet_results: { result: {
     __typename: "TweetWithVisibilityResults",

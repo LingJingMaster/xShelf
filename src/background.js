@@ -230,7 +230,7 @@ async function fetchTimelinePage(category, cursor) {
 
 async function fetchImageData(value) {
   const url = new URL(value);
-  if (url.protocol !== "https:" || url.hostname !== "pbs.twimg.com") throw new Error("Only X image assets can be loaded.");
+  if (url.protocol !== "https:" || !url.hostname.endsWith(".twimg.com")) throw new Error("Only X image assets can be loaded.");
   const response = await fetch(url.toString(), { credentials: "omit" });
   if (!response.ok) throw new Error("Image returned HTTP " + response.status + ".");
   const contentType = response.headers.get("content-type") || "";

@@ -41,8 +41,9 @@ test("reads current user core/avatar fields and tweet media", () => {
         avatar: { image_url: "https://pbs.twimg.com/profile_images/8/avatar.jpg" }
       } } },
       legacy: {
-        full_text: "Tweet with a picture",
+        full_text: "Tweet with a picture https://t.co/1EGqlEXEwS",
         created_at: "Tue Jan 02 00:00:00 +0000 2024",
+        entities: { urls: [{ url: "https://t.co/1EGqlEXEwS", expanded_url: "https://twitter.com/readswithravi/status/2107321952050524605/photo/1" }] },
         extended_entities: { media: [{
           type: "photo",
           media_url_https: "https://pbs.twimg.com/media/picture.jpg",
@@ -58,6 +59,7 @@ test("reads current user core/avatar fields and tweet media", () => {
   assert.equal(result.rows[0].avatarUrl, "https://pbs.twimg.com/profile_images/8/avatar.jpg");
   assert.equal(result.rows[0].media[0].url, "https://pbs.twimg.com/media/picture.jpg");
   assert.deepEqual(result.rows[0].contentTypes, ["image"]);
+  assert.equal(result.rows[0].links[0].url, "https://t.co/1EGqlEXEwS");
 });
 
 test("normalizes relationship timelines into users", () => {

@@ -1,4 +1,5 @@
 import { categoryFromUrl } from "./lib/x-capture.js";
+import { extractPreviewImage, isAllowedPreviewUrl } from "./lib/link-preview.js";
 
 const APP_URL = chrome.runtime.getURL("app.html");
 const CAPTURED_KEY = "xRequestTemplates";
@@ -145,12 +146,44 @@ async function fetchTimelinePage(category, cursor) {
   return { data, rateRemaining: response.headers.get("x-rate-limit-remaining") };
 }
 
+async function fetchImageData(value) {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.hostname !== "pbs.twimg.com") throw new Error("Only X image assets can be loaded.");
+  const response = await fetch(url.toString(), { credentials: "omit" });
+  if (!response.ok) throw new Error("Image returned HTTP " + response.status + ".");
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.startsWith("image/")) throw new Error("Asset is not an image.");
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > 12 * 1024 * 1024) throw new Error("Image is too large to proxy.");
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return { dataUrl: "data:" + contentType + ";base64," + btoa(binary) };
+}
+
+async function resolveLinkPreview(value) {
+  if (!isAllowedPreviewUrl(value)) throw new Error("Only t.co and X links can be previewed.");
+  const response = await fetch(value, { redirect: "follow", credentials: "omit" });
+  if (!response.ok) throw new Error("Preview page returned HTTP " + response.status + ".");
+  if (!isAllowedPreviewUrl(response.url)) throw new Error("Preview redirected outside X.");
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.startsWith("image/")) return { imageUrl: response.url, targetUrl: response.url };
+  if (!contentType.includes("text/html")) return { imageUrl: null, targetUrl: response.url };
+  const html = await response.text();
+  return { imageUrl: extractPreviewImage(html), targetUrl: response.url };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const task = message?.type === "capture-status"
     ? getCaptureStatus()
     : message?.type === "begin-sync-capture"
       ? beginSyncCapture(message, sender)
-      : message?.type === "fetch-timeline-page"
+      : message?.type === "resolve-link-preview"
+      ? resolveLinkPreview(message.url)
+      : message?.type === "fetch-image-data"
+        ? fetchImageData(message.url)
+        : message?.type === "fetch-timeline-page"
       ? fetchTimelinePage(message.category, message.cursor || null)
       : message?.type === "fetch-bookmarks-page"
         ? fetchTimelinePage("bookmark", message.cursor || null)

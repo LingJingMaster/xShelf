@@ -78,5 +78,35 @@ test("opens the likes page, captures its request, and returns to xShelf", async 
     captureCategory: "like"
   });
 
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    url: "https://x.com/readswithravi/status/2107321952050524605",
+    headers: { get: name => name === "content-type" ? "text/html; charset=UTF-8" : null },
+    text: async () => '<meta property="og:image" content="https://pbs.twimg.com/media/HT5z3VOWUAAzdyW?format=webp&amp;name=large">'
+  });
+  const preview = await sendToListener(harness.listeners.message, {
+    type: "resolve-link-preview",
+    url: "https://t.co/1EGqlEXEwS"
+  }, { tab: { id: 11 } });
+  globalThis.fetch = originalFetch;
+  assert.equal(preview.ok, true);
+  assert.equal(preview.imageUrl, "https://pbs.twimg.com/media/HT5z3VOWUAAzdyW?format=webp&name=large");
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: name => name === "content-type" ? "image/png" : null },
+    arrayBuffer: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer
+  });
+  const image = await sendToListener(harness.listeners.message, {
+    type: "fetch-image-data",
+    url: "https://pbs.twimg.com/media/example.png"
+  }, { tab: { id: 11 } });
+  globalThis.fetch = originalFetch;
+  assert.equal(image.ok, true);
+  assert.equal(image.dataUrl, "data:image/png;base64,iVBORw==");
+
   delete globalThis.chrome;
 });

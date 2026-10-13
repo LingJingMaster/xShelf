@@ -93,6 +93,31 @@ function extractMedia(tweet, legacy) {
   return rows;
 }
 
+function extractLinks(tweet, legacy) {
+  const links = [];
+  const seen = new Set();
+  const sources = [legacy?.entities?.urls, tweet?.entities?.urls];
+  for (const source of sources) {
+    if (!Array.isArray(source)) continue;
+    for (const item of source) {
+      const shortUrl = item?.url || "";
+      const expandedUrl = item?.expanded_url || item?.expandedUrl || shortUrl;
+      if (!shortUrl && !expandedUrl) continue;
+      const key = shortUrl || expandedUrl;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      links.push({ url: shortUrl || expandedUrl, expandedUrl, displayUrl: item?.display_url || "" });
+    }
+  }
+  const text = legacy?.full_text || tweet?.text || "";
+  for (const match of text.matchAll(/https:\/\/t\.co\/[A-Za-z0-9]+/g)) {
+    if (seen.has(match[0])) continue;
+    seen.add(match[0]);
+    links.push({ url: match[0], expandedUrl: match[0], displayUrl: "" });
+  }
+  return links;
+}
+
 function mediaTypes(media) {
   const types = new Set();
   media.forEach(item => {
@@ -113,6 +138,7 @@ export function normalizeTweet(raw, category = "bookmark") {
   const noteText = tweet.note_tweet?.note_tweet_results?.result?.text || tweet.note_tweet?.text;
   const article = tweet.article?.article_results?.result || tweet.article;
   const media = extractMedia(tweet, legacy);
+  const links = extractLinks(tweet, legacy);
   const postType = legacy.retweeted_status_result ? "repost" : legacy.in_reply_to_status_id_str ? "reply" : legacy.quoted_status_id_str || tweet.quoted_status_result ? "quote" : "post";
   return {
     id: category + "_" + tweetId,
@@ -131,7 +157,8 @@ export function normalizeTweet(raw, category = "bookmark") {
     articleTitle: article?.title || "",
     articlePreview: article?.preview_text || article?.description || "",
     url: author.screenName ? "https://x.com/" + author.screenName + "/status/" + tweetId : "https://x.com/i/status/" + tweetId,
-    media
+    media,
+    links
   };
 }
 

@@ -14,7 +14,7 @@ intentionally explicit so UI labels do not get mistaken for working features.
 | Blocked accounts sync | Implemented | Captures `BlockedAccountsAll`, stores normalized users |
 | Search | Implemented | Phrase, `and`, `or`, `*`; names/descriptions included for users |
 | Folders | Implemented | Local-only folders for every category |
-| Compact / gallery / stats views | Implemented | Gallery reads legacy and current media fields and loads X-owned media URLs |
+| Compact / gallery / stats views | Implemented | Compact view has a media column; gallery reads media fields, safely resolves missing `t.co → X` previews, and proxies failed X image loads through the extension background |
 | JSON / CSV / HTML export | Implemented | Exports the current category and active filters |
 | ZIP backup / restore | Implemented | Deflate ZIP containing plaintext JSONL |
 | Local deletion | Implemented | Never changes the corresponding X record |

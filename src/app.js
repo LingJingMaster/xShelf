@@ -1,5 +1,6 @@
 import { dumpDatabase, getAll, putMany, remove, restoreDatabase } from "./lib/db.js";
 import { filterPosts } from "./lib/search.js";
+import { isAllowedPreviewUrl } from "./lib/link-preview.js";
 import { parseTimelineResponse } from "./lib/x-sync.js";
 
 const $ = selector => document.querySelector(selector);
@@ -29,6 +30,9 @@ const state = {
 
 const stage = $("#stage");
 const toast = $("#toast");
+const previewLoading = new Set();
+const previewFailed = new Set();
+const imageProxyRequests = new Map();
 let toastTimer;
 
 function showToast(message) {
@@ -123,11 +127,34 @@ function selectFolder(folder) {
   render();
 }
 
+async function proxyImageUrl(url) {
+  if (!imageProxyRequests.has(url)) {
+    imageProxyRequests.set(url, runtimeMessage({ type: "fetch-image-data", url }).finally(() => imageProxyRequests.delete(url)));
+  }
+  const response = await imageProxyRequests.get(url);
+  return response?.ok ? response.dataUrl : null;
+}
+
+function loadImage(image, url, onFailure) {
+  let triedProxy = false;
+  image.addEventListener("error", async () => {
+    if (triedProxy) {
+      onFailure?.();
+      return;
+    }
+    triedProxy = true;
+    const dataUrl = await proxyImageUrl(url);
+    if (dataUrl) image.src = dataUrl;
+    else onFailure?.();
+  });
+  image.src = url;
+}
+
 function makeAvatar(post) {
   const avatar = element("div", { className: "avatar" });
   if (post.avatarUrl) {
-    const image = element("img", { src: post.avatarUrl, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
-    image.addEventListener("error", () => {
+    const image = element("img", { alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+    loadImage(image, post.avatarUrl, () => {
       image.remove();
       avatar.textContent = (post.authorName || "?").slice(0, 1);
     });
@@ -136,6 +163,47 @@ function makeAvatar(post) {
     avatar.textContent = (post.authorName || "?").slice(0, 1);
   }
   return avatar;
+}
+
+function previewCandidate(row) {
+  const textLink = row.text?.match(/https:\/\/t\.co\/[A-Za-z0-9]+/)?.[0];
+  const candidates = (row.links || []).flatMap(link => [link.url, link.expandedUrl]).filter(Boolean);
+  return candidates.find(isAllowedPreviewUrl) || (textLink && isAllowedPreviewUrl(textLink) ? textLink : null);
+}
+
+async function hydrateLinkPreview(row) {
+  if (row.media?.length || previewLoading.has(row.id) || previewFailed.has(row.id)) return;
+  const candidate = previewCandidate(row);
+  if (!candidate) return;
+  previewLoading.add(row.id);
+  const response = await runtimeMessage({ type: "resolve-link-preview", url: candidate });
+  previewLoading.delete(row.id);
+  if (!response?.ok || !response.imageUrl) {
+    previewFailed.add(row.id);
+    if (state.view === "gallery" || state.view === "compact") render();
+    return;
+  }
+  row.media = [{ type: "photo", url: response.imageUrl, alt: "" }];
+  row.contentTypes = [...new Set([...(row.contentTypes || []), "image"])];
+  if (response.targetUrl) row.linkTargetUrl = response.targetUrl;
+  await putMany("posts", [row]);
+  if (state.view === "gallery" || state.view === "compact") render();
+}
+
+function mediaCell(row, compact = false) {
+  const className = compact ? "compact-media" : "media-preview";
+  const media = row.media?.[0];
+  if (media?.url) {
+    const image = element("img", { alt: media.alt || "", loading: "lazy", referrerpolicy: "no-referrer" });
+    loadImage(image, media.url, () => image.closest("." + className)?.classList.add("media-error"));
+    return element("a", { className, href: row.url || media.url, target: "_blank", rel: "noreferrer" }, [image]);
+  }
+  const hasPreviewLink = Boolean(previewCandidate(row));
+  if (hasPreviewLink && !previewFailed.has(row.id)) {
+    hydrateLinkPreview(row);
+    return element("div", { className: className + " media-loading", text: compact ? "读取中…" : "正在读取链接预览…" });
+  }
+  return element("div", { className: className + " media-empty", text: "—" });
 }
 
 function makeCard(row) {
@@ -180,13 +248,12 @@ function makeCard(row) {
     element("span", { text: detail }),
     select
   ]);
-  const children = [author];
-  if (state.view === "gallery" && row.media?.length) {
-    const media = row.media[0];
-    const image = element("img", { src: media.url, alt: media.alt || "", loading: "lazy", referrerpolicy: "no-referrer" });
-    image.addEventListener("error", () => image.closest(".media-preview")?.classList.add("media-error"));
-    children.push(element("a", { className: "media-preview", href: row.url || media.url, target: "_blank", rel: "noreferrer" }, [image]));
+  if (state.view === "compact") {
+    const folderCell = element("div", { className: "compact-folder" }, [select, element("small", { text: formatDate(row.createdAt) })]);
+    return element("article", { className: "bookmark-card" }, [author, folderCell, textLink, isUser ? element("div", { className: "compact-media media-empty", text: "—" }) : mediaCell(row, true)]);
   }
+  const children = [author];
+  if (state.view === "gallery") children.push(mediaCell(row));
   children.push(textLink, foot);
   return element("article", { className: "bookmark-card" }, children);
 }
@@ -248,8 +315,9 @@ function render() {
     if (state.view === "compact") {
       stage.append(element("div", { className: "compact-header" }, [
         element("span", { text: "用户" }),
+        element("span", { text: "文件夹" }),
         element("span", { text: USER_CATEGORIES.has(state.category) ? "简介" : "内容" }),
-        element("span", { text: "日期 / 文件夹" })
+        element("span", { text: USER_CATEGORIES.has(state.category) ? "" : "媒体" })
       ]));
     }
     rows.forEach(row => stage.append(makeCard(row)));

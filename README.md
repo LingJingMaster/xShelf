@@ -13,6 +13,10 @@ analytics SDK, payment system, or remote xShelf server.
 - Keep the same post as separate bookmark and like records
 - Read both legacy and current X identity/media response fields
 - Render avatars from `pbs.twimg.com` and media from X image/video domains
+- Resolve missing X media previews from safe `t.co → X` links and cache the
+  resulting `og:image` locally
+- Fall back to a permission-scoped background image proxy when an extension page
+  cannot render `pbs.twimg.com` directly
 - Search phrases, `and`, `or`, and `*` wildcards
 - Filter posts by folder, date, content type, and post type
 - Search user names, handles, and descriptions

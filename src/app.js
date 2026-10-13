@@ -184,12 +184,16 @@ function previewCandidates(row) {
     add(link.expandedUrl, previewRank(link.expandedUrl || ""));
   }
   for (const match of (row.text || "").matchAll(/https:\/\/t\.co\/[A-Za-z0-9]+/g)) add(match[0], 1);
-  if (/\/status\/\d+/.test(row.url || "")) add(row.url, 4);
+  if ((row.contentTypes || []).includes("article") && /\/status\/\d+/.test(row.url || "")) add(row.url, 4);
   return [...best].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([url]) => url);
 }
 
+function displayMedia(row) {
+  return (row.media || []).find(item => item?.url && !item.url.includes("/profile_images/") && !item.url.includes("/profile_banners/"));
+}
+
 async function hydrateLinkPreview(row) {
-  if (row.media?.length || previewLoading.has(row.id) || previewFailed.has(row.id)) return;
+  if (displayMedia(row) || previewLoading.has(row.id) || previewFailed.has(row.id)) return;
   const candidates = previewCandidates(row);
   if (!candidates.length) return;
   previewLoading.add(row.id);
@@ -218,7 +222,7 @@ async function hydrateLinkPreview(row) {
 
 function mediaCell(row, compact = false) {
   const className = compact ? "compact-media" : "media-preview";
-  const media = row.media?.[0];
+  const media = displayMedia(row);
   if (media?.url) {
     const image = element("img", { alt: media.alt || "", loading: "lazy", referrerpolicy: "no-referrer" });
     loadImage(image, media.url, () => image.closest("." + className)?.classList.add("media-error"));

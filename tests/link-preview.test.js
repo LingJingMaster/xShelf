@@ -35,6 +35,11 @@ test("skips the generic article placeholder and uses the media image", () => {
   assert.equal(extractPreviewImage(html), "https://pbs.twimg.com/media/HQhT70VXYAAFD1T?format=webp&name=large");
 });
 
+test("does not treat a profile avatar as the tweet image", () => {
+  const html = '<meta property="og:image" content="https://pbs.twimg.com/profile_images/8/avatar_normal.jpg">';
+  assert.equal(extractPreviewImage(html), null);
+});
+
 test("rejects non-X image metadata", () => {
   assert.equal(extractPreviewImage('<meta property="og:image" content="https://example.com/tracker.png">'), null);
 });

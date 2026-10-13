@@ -34,7 +34,7 @@ export function extractRedirectTarget(html) {
 }
 
 function isPlaceholderImage(url) {
-  return url.includes("/rweb/ssr/default/") || url.endsWith("/og/image.png");
+  return url.includes("/rweb/ssr/default/") || url.endsWith("/og/image.png") || url.includes("/profile_images/") || url.includes("/profile_banners/");
 }
 
 export function extractPreviewImage(html) {

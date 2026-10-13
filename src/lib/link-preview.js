@@ -29,20 +29,28 @@ export function extractRedirectTarget(html) {
   const source = String(html || "");
   const refresh = source.match(/URL=([^"'\s>]+)/i)?.[1];
   const replaced = source.match(/location\.replace\(\s*["']([^"']+)["']/i)?.[1];
-  const candidate = decodeHtml((refresh || replaced || "").replaceAll("\\/", "/"));
+  const candidate = decodeHtml((refresh || replaced || "").replaceAll("\\/", "/")).replace(/^http:\/\/((?:www\.)?(?:x|twitter)\.com)/, "https://$1");
   return isAllowedPreviewUrl(candidate) ? candidate : null;
+}
+
+function isPlaceholderImage(url) {
+  return url.includes("/rweb/ssr/default/") || url.endsWith("/og/image.png");
 }
 
 export function extractPreviewImage(html) {
   const source = String(html || "");
   const tags = source.match(/<meta\s+[^>]*>/gi) || [];
+  const images = [];
   for (const tag of tags) {
     if (!/(?:property|name)=["'](?:og:image|og:image:secure_url|twitter:image)["']/i.test(tag)) continue;
     const content = tag.match(/content=["']([^"']+)["']/i)?.[1];
     const image = content && xImageUrl(content);
-    if (image) return image;
+    if (image && !isPlaceholderImage(image)) images.push(image);
   }
+  const media = images.find(url => url.includes("pbs.twimg.com/media/"));
+  if (media) return media;
+  if (images[0]) return images[0];
   const srcset = source.match(/imageSrcSet=["']([^"']+)["']/i)?.[1] || "";
-  const candidates = srcset.split(",").map(item => item.trim().split(/\s+/)[0]).filter(Boolean);
-  return candidates.map(xImageUrl).find(url => url?.includes("name=large")) || candidates.map(xImageUrl).find(Boolean) || null;
+  const candidates = srcset.split(",").map(item => item.trim().split(/\s+/)[0]).map(xImageUrl).filter(url => url && !isPlaceholderImage(url));
+  return candidates.find(url => url.includes("name=large")) || candidates[0] || null;
 }

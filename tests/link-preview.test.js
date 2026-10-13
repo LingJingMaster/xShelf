@@ -27,6 +27,12 @@ test("follows the script redirect inside a t.co page", () => {
   const html = '<noscript><META http-equiv="refresh" content="0;URL=https://twitter.com/LotusDecoder/status/2109898187582673264/photo/1"></noscript><script>location.replace("https:\\/\\/twitter.com\\/LotusDecoder\\/status\\/2109898187582673264\\/photo\\/1")</script>';
   assert.equal(extractRedirectTarget(html), "https://twitter.com/LotusDecoder/status/2109898187582673264/photo/1");
   assert.equal(extractRedirectTarget('<script>location.replace("https://example.com/x")</script>'), null);
+  assert.equal(extractRedirectTarget('<script>location.replace("http:\\/\\/x.com\\/i\\/article\\/123")</script>'), "https://x.com/i/article/123");
+});
+
+test("skips the generic article placeholder and uses the media image", () => {
+  const html = '<meta property="og:image" content="https://abs.twimg.com/rweb/ssr/default/v2/og/image.png"><link imageSrcSet="https://pbs.twimg.com/media/HQhT70VXYAAFD1T?format=webp&amp;name=small 680w, https://pbs.twimg.com/media/HQhT70VXYAAFD1T?format=webp&amp;name=large 2048w">';
+  assert.equal(extractPreviewImage(html), "https://pbs.twimg.com/media/HQhT70VXYAAFD1T?format=webp&name=large");
 });
 
 test("rejects non-X image metadata", () => {

@@ -25,6 +25,14 @@ function xImageUrl(value) {
   return null;
 }
 
+export function extractRedirectTarget(html) {
+  const source = String(html || "");
+  const refresh = source.match(/URL=([^"'\s>]+)/i)?.[1];
+  const replaced = source.match(/location\.replace\(\s*["']([^"']+)["']/i)?.[1];
+  const candidate = decodeHtml((refresh || replaced || "").replaceAll("\\/", "/"));
+  return isAllowedPreviewUrl(candidate) ? candidate : null;
+}
+
 export function extractPreviewImage(html) {
   const source = String(html || "");
   const tags = source.match(/<meta\s+[^>]*>/gi) || [];

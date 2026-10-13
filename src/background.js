@@ -1,6 +1,6 @@
 import { categoryFromUrl } from "./lib/x-capture.js";
 import { nextTimelineUrl } from "./lib/x-sync.js";
-import { extractPreviewImage, isAllowedPreviewUrl } from "./lib/link-preview.js";
+import { extractPreviewImage, extractRedirectTarget, isAllowedPreviewUrl } from "./lib/link-preview.js";
 import { extractScreenName, isScreenName, needsProfileUrl, profileUrl } from "./lib/profile-url.js";
 
 const APP_URL = chrome.runtime.getURL("app.html");
@@ -251,14 +251,18 @@ async function fetchImageData(value) {
   return { dataUrl: "data:" + contentType + ";base64," + btoa(binary) };
 }
 
-async function readPreview(value, credentials) {
+async function readPreview(value, credentials, depth = 0) {
   const response = await fetch(value, { redirect: "follow", credentials, signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error("Preview page returned HTTP " + response.status + ".");
   if (!isAllowedPreviewUrl(response.url)) throw new Error("Preview redirected outside X.");
   const contentType = response.headers.get("content-type") || "";
   if (contentType.startsWith("image/")) return { imageUrl: response.url, targetUrl: response.url };
   if (!contentType.includes("text/html")) return { imageUrl: null, targetUrl: response.url };
-  return { imageUrl: extractPreviewImage(await response.text()), targetUrl: response.url };
+  const html = await response.text();
+  const imageUrl = extractPreviewImage(html);
+  const next = depth < 2 ? extractRedirectTarget(html) : null;
+  if (!imageUrl && next && next !== response.url) return readPreview(next, credentials, depth + 1);
+  return { imageUrl, targetUrl: response.url };
 }
 
 async function resolveLinkPreview(value) {

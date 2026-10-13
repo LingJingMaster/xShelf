@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractPreviewImage, isAllowedPreviewUrl } from "../src/lib/link-preview.js";
+import { extractPreviewImage, extractRedirectTarget, isAllowedPreviewUrl } from "../src/lib/link-preview.js";
 
 test("allows only X-owned preview pages", () => {
   assert.equal(isAllowedPreviewUrl("https://t.co/1EGqlEXEwS"), true);
@@ -21,6 +21,12 @@ test("extracts and decodes X og:image metadata", () => {
 test("reads the large image from the current X status page", () => {
   const html = '<link rel="preload" as="image" imageSrcSet="https://pbs.twimg.com/media/HUfdNF0aYAEdrXE?format=webp&amp;name=small 680w, https://pbs.twimg.com/media/HUfdNF0aYAEdrXE?format=webp&amp;name=large 2048w">';
   assert.equal(extractPreviewImage(html), "https://pbs.twimg.com/media/HUfdNF0aYAEdrXE?format=webp&name=large");
+});
+
+test("follows the script redirect inside a t.co page", () => {
+  const html = '<noscript><META http-equiv="refresh" content="0;URL=https://twitter.com/LotusDecoder/status/2109898187582673264/photo/1"></noscript><script>location.replace("https:\\/\\/twitter.com\\/LotusDecoder\\/status\\/2109898187582673264\\/photo\\/1")</script>';
+  assert.equal(extractRedirectTarget(html), "https://twitter.com/LotusDecoder/status/2109898187582673264/photo/1");
+  assert.equal(extractRedirectTarget('<script>location.replace("https://example.com/x")</script>'), null);
 });
 
 test("rejects non-X image metadata", () => {

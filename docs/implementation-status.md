@@ -5,6 +5,7 @@ intentionally explicit so UI labels do not get mistaken for working features.
 
 | Area | Status | Notes |
 |---|---|---|
+| Integrated sync handoff | Implemented | Opens X in a temporary tab, returns to the originating xShelf tab, closes the temporary tab, and starts sync automatically after capture |
 | Bookmarks sync | Implemented | Captures `Bookmarks`, paginates, stores in `posts` |
 | Likes sync | Implemented | Opens `/i/history/likes`; captures both `Likes` and `UserLikes`; stored separately from bookmarks |
 | Posts and replies sync | Implemented | Captures `UserTweetsAndReplies`; UI separates normal posts and replies |

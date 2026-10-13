@@ -1,0 +1,82 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+function makeChrome() {
+  const session = {};
+  const calls = { created: [], updated: [], removed: [], sent: [] };
+  const listeners = {};
+  const getKeys = keys => {
+    const list = Array.isArray(keys) ? keys : [keys];
+    return Object.fromEntries(list.filter(key => key in session).map(key => [key, session[key]]));
+  };
+  const chrome = {
+    runtime: {
+      getURL: path => "chrome-extension://test/" + path,
+      onMessage: { addListener: listener => { listeners.message = listener; } },
+      sendMessage: async message => { calls.sent.push(message); }
+    },
+    action: { onClicked: { addListener: listener => { listeners.action = listener; } } },
+    webRequest: { onBeforeSendHeaders: { addListener: listener => { listeners.request = listener; } } },
+    tabs: {
+      onRemoved: { addListener: listener => { listeners.removed = listener; } },
+      query: async () => [],
+      create: async options => { calls.created.push(options); return { id: 22, windowId: 2 }; },
+      update: async (id, options) => { calls.updated.push([id, options]); return { id, windowId: id === 11 ? 1 : 2 }; },
+      get: async id => ({ id, windowId: 1 }),
+      remove: async id => { calls.removed.push(id); }
+    },
+    windows: { update: async () => {} },
+    storage: {
+      session: {
+        get: async keys => getKeys(keys),
+        set: async values => { Object.assign(session, values); },
+        remove: async key => { delete session[key]; }
+      }
+    }
+  };
+  return { chrome, session, calls, listeners };
+}
+
+function sendToListener(listener, message, sender) {
+  return new Promise(resolve => listener(message, sender, resolve));
+}
+
+test("opens the likes page, captures its request, and returns to xShelf", async () => {
+  const harness = makeChrome();
+  globalThis.chrome = harness.chrome;
+  await import("../src/background.js?integrated-flow-test");
+
+  const opened = await sendToListener(harness.listeners.message, {
+    type: "begin-sync-capture",
+    category: "like",
+    requestedCategory: "like",
+    url: "https://x.com/i/history/likes"
+  }, { tab: { id: 11 } });
+
+  assert.equal(opened.ok, true);
+  assert.deepEqual(harness.calls.created, [{ url: "about:blank", active: true }]);
+  assert.deepEqual(harness.calls.updated[0], [22, { url: "https://x.com/i/history/likes" }]);
+  assert.equal(harness.session.pendingSyncCapture.appTabId, 11);
+
+  harness.listeners.request({
+    tabId: 22,
+    url: "https://x.com/i/api/graphql/query-id/Likes?variables=%7B%7D",
+    requestHeaders: [
+      { name: "authorization", value: "Bearer test" },
+      { name: "x-csrf-token", value: "csrf" }
+    ]
+  });
+  await new Promise(resolve => setTimeout(resolve, 10));
+
+  assert.equal(harness.session.xRequestTemplates.like.url.includes("/Likes?"), true);
+  assert.equal("pendingSyncCapture" in harness.session, false);
+  assert.deepEqual(harness.calls.updated.at(-1), [11, { active: true }]);
+  assert.deepEqual(harness.calls.removed, [22]);
+  assert.deepEqual(harness.calls.sent.at(-1), {
+    type: "sync-capture-ready",
+    category: "like",
+    captureCategory: "like"
+  });
+
+  delete globalThis.chrome;
+});

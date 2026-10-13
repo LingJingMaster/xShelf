@@ -22,6 +22,7 @@ const state = {
   filters: { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false },
   syncReady: false,
   captureCategories: {},
+  awaitingCapture: false,
   syncing: false,
   stopSync: false
 };
@@ -213,14 +214,14 @@ function renderStats(rows) {
 function renderEmpty(hasAnyRows) {
   const config = CATEGORIES[state.category];
   const title = hasAnyRows ? "没有找到符合条件的内容" : config.label + "还是空的";
-  const copy = hasAnyRows ? "换个关键词，或清除筛选条件后再看看。" : "先" + config.instruction + "，让 xShelf 识别该列表的请求，然后回到这里同步。";
+  const copy = hasAnyRows ? "换个关键词，或清除筛选条件后再看看。" : "点击下方按钮后，xShelf 会打开对应的 X 页面；识别到列表请求后会自动返回并开始同步。";
   const action = element("button", { className: "ink-button", text: hasAnyRows ? "清除搜索和筛选" : config.instruction, onclick: () => {
     if (hasAnyRows) {
       state.filters = { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false };
       $("#searchInput").value = "";
       $("#filterForm").reset();
       render();
-    } else window.open(config.openUrl, "_blank");
+    } else syncCategory();
   }});
   stage.append(element("div", { className: "empty-state" }, [element("div", { className: "empty-mark" }), element("h2", { text: title }), element("p", { text: copy }), action]));
 }
@@ -261,14 +262,18 @@ async function refreshCaptureStatus() {
   const captureCategory = CATEGORIES[state.category].syncCategory || state.category;
   state.syncReady = Boolean(response?.ok && state.captureCategories[captureCategory]);
   $("#syncLight").classList.toggle("ready", state.syncReady);
-  if (!state.syncing) {
+  if (!state.syncing && !state.awaitingCapture) {
     $("#syncLabel").textContent = state.syncReady ? "同步" + CATEGORIES[state.category].label : "连接 " + CATEGORIES[state.category].label;
     $("#syncMeta").textContent = state.syncReady ? "已识别该列表请求" : CATEGORIES[state.category].instruction;
   }
 }
 
-async function syncCategory() {
-  const category = state.category;
+async function syncCategory(categoryOverride = state.category) {
+  const category = typeof categoryOverride === "string" ? categoryOverride : state.category;
+  if (state.awaitingCapture) {
+    showToast("正在等待 X 页面加载对应列表。");
+    return;
+  }
   if (state.syncing) {
     state.stopSync = true;
     $("#syncMeta").textContent = "将在本页结束后停止";
@@ -278,8 +283,22 @@ async function syncCategory() {
   const config = CATEGORIES[category];
   const captureCategory = config.syncCategory || category;
   if (!state.captureCategories[captureCategory]) {
-    window.open(config.openUrl, "_blank");
-    showToast(config.instruction + "，页面加载完成后回来再次点击同步。");
+    state.awaitingCapture = true;
+    $("#syncLight").classList.add("busy");
+    $("#syncLabel").textContent = "正在连接" + config.label;
+    $("#syncMeta").textContent = "捕获成功后会自动返回并同步";
+    const response = await runtimeMessage({
+      type: "begin-sync-capture",
+      category: captureCategory,
+      requestedCategory: category,
+      url: config.openUrl
+    });
+    if (!response?.ok) {
+      state.awaitingCapture = false;
+      $("#syncLight").classList.remove("busy");
+      await refreshCaptureStatus();
+      showToast(response?.error || "无法打开 X 同步页面。");
+    }
     return;
   }
   state.syncing = true;
@@ -447,10 +466,28 @@ async function importFile(file, backupMode = false) {
   }
 }
 
+function handleRuntimeMessage(message) {
+  if (message?.type === "sync-capture-ready") {
+    state.awaitingCapture = false;
+    $("#syncLight").classList.remove("busy");
+    state.category = message.category || state.category;
+    state.folder = "all";
+    render();
+    refreshCaptureStatus().then(() => syncCategory(state.category));
+  }
+  if (message?.type === "sync-capture-cancelled") {
+    state.awaitingCapture = false;
+    $("#syncLight").classList.remove("busy");
+    refreshCaptureStatus();
+    showToast("X 页面已关闭，本次连接已取消。");
+  }
+}
+
 function bindEvents() {
   $("#openNav").onclick = () => $("#app").classList.add("nav-open");
   $("#closeNav").onclick = () => $("#app").classList.remove("nav-open");
-  $("#syncButton").onclick = syncCategory;
+  $("#syncButton").onclick = () => syncCategory();
+  if (globalThis.chrome?.runtime?.onMessage) chrome.runtime.onMessage.addListener(handleRuntimeMessage);
   document.addEventListener("click", async event => {
     const button = event.target.closest("[data-category]");
     if (!button) return;

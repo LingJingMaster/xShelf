@@ -31,10 +31,13 @@ shape. Export and back up your data regularly.
 2. Open `chrome://extensions`, enable Developer mode, then choose **Load
    unpacked** and select this repository.
 3. Open xShelf from its toolbar icon.
-4. Select a category. If it is not connected yet, follow the button to open the
-   matching X page. Likes opens `https://x.com/i/history/likes` directly. For
-   posts, following, and followers, navigate to the indicated tab on your own
-   profile. Once the X list has loaded, return to xShelf and click sync again.
+4. Select a category and click connect/sync. xShelf opens the matching X page in
+   a temporary tab. As soon as the expected timeline request appears, it closes
+   that tab, returns to the original xShelf tab, and starts pagination
+   automatically. Likes opens `https://x.com/i/history/likes` directly.
+5. Posts, following, and followers may still require one click on the indicated
+   profile tab because X has no account-independent URL for those lists. The
+   return and synchronization remain automatic after that click.
 
 No build step is required. Run `npm test` for parser tests and `npm run package`
 to create `dist/xshelf.zip`.
@@ -48,9 +51,11 @@ open app tab and writes normalized records locally. It does not read or store
 your X cookies. Captured authorization headers live only in browser session
 storage and disappear when Chrome exits.
 
-A category must be opened on X at least once per browser session before xShelf
-can sync it. This request-template approach avoids hard-coding a single set of
-GraphQL variables for every account and makes query-ID changes easier to detect.
+A category only needs an observed X request once per browser session. The
+connect flow remembers the originating xShelf tab, opens X, captures the real
+request template, returns to xShelf, and starts syncing automatically. This
+request-template approach avoids hard-coding a single set of GraphQL variables
+for every account and makes query-ID changes easier to detect.
 
 ## Project boundaries
 

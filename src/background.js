@@ -3,6 +3,7 @@ import { categoryFromUrl } from "./lib/x-capture.js";
 const APP_URL = chrome.runtime.getURL("app.html");
 const CAPTURED_KEY = "xRequestTemplates";
 const LEGACY_CAPTURED_KEY = "xBookmarkRequest";
+const PENDING_SYNC_KEY = "pendingSyncCapture";
 const SAFE_HEADERS = new Set([
   "authorization",
   "x-csrf-token",
@@ -40,11 +41,65 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
       const templates = stored[CAPTURED_KEY] || {};
       templates[category] = { url: details.url, headers, capturedAt: Date.now() };
       await chrome.storage.session.set({ [CAPTURED_KEY]: templates });
+      await completePendingCapture(category);
     });
   },
   { urls: ["https://x.com/i/api/graphql/*"] },
   ["requestHeaders", "extraHeaders"]
 );
+
+async function completePendingCapture(category) {
+  const stored = await chrome.storage.session.get(PENDING_SYNC_KEY);
+  const pending = stored[PENDING_SYNC_KEY];
+  if (!pending || pending.captureCategory !== category) return;
+  await chrome.storage.session.remove(PENDING_SYNC_KEY);
+  try {
+    await chrome.tabs.update(pending.appTabId, { active: true });
+    const appTab = await chrome.tabs.get(pending.appTabId);
+    if (appTab.windowId) await chrome.windows.update(appTab.windowId, { focused: true });
+  } catch {}
+  if (pending.xTabId !== pending.appTabId) {
+    try { await chrome.tabs.remove(pending.xTabId); } catch {}
+  }
+  try {
+    await chrome.runtime.sendMessage({
+      type: "sync-capture-ready",
+      category: pending.requestedCategory,
+      captureCategory: category
+    });
+  } catch {}
+}
+
+async function beginSyncCapture(message, sender) {
+  const appTabId = sender.tab?.id;
+  if (!appTabId) throw new Error("xShelf must be open in a browser tab.");
+  const target = new URL(message.url);
+  if (target.protocol !== "https:" || target.hostname !== "x.com") throw new Error("Invalid X sync page.");
+  const previous = (await chrome.storage.session.get(PENDING_SYNC_KEY))[PENDING_SYNC_KEY];
+  if (previous?.xTabId && previous.xTabId !== appTabId) {
+    try { await chrome.tabs.remove(previous.xTabId); } catch {}
+  }
+  const xTab = await chrome.tabs.create({ url: "about:blank", active: true });
+  await chrome.storage.session.set({
+    [PENDING_SYNC_KEY]: {
+      appTabId,
+      xTabId: xTab.id,
+      captureCategory: message.category,
+      requestedCategory: message.requestedCategory || message.category,
+      startedAt: Date.now()
+    }
+  });
+  await chrome.tabs.update(xTab.id, { url: target.toString() });
+  return { opened: true };
+}
+
+chrome.tabs.onRemoved.addListener(async tabId => {
+  const stored = await chrome.storage.session.get(PENDING_SYNC_KEY);
+  const pending = stored[PENDING_SYNC_KEY];
+  if (!pending || pending.xTabId !== tabId) return;
+  await chrome.storage.session.remove(PENDING_SYNC_KEY);
+  try { await chrome.runtime.sendMessage({ type: "sync-capture-cancelled", category: pending.requestedCategory }); } catch {}
+});
 
 function buildPageUrl(templateUrl, cursor) {
   const url = new URL(templateUrl);
@@ -90,10 +145,12 @@ async function fetchTimelinePage(category, cursor) {
   return { data, rateRemaining: response.headers.get("x-rate-limit-remaining") };
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const task = message?.type === "capture-status"
     ? getCaptureStatus()
-    : message?.type === "fetch-timeline-page"
+    : message?.type === "begin-sync-capture"
+      ? beginSyncCapture(message, sender)
+      : message?.type === "fetch-timeline-page"
       ? fetchTimelinePage(message.category, message.cursor || null)
       : message?.type === "fetch-bookmarks-page"
         ? fetchTimelinePage("bookmark", message.cursor || null)

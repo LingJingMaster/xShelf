@@ -334,8 +334,6 @@ function render() {
     node.textContent = String(source.filter(row => rowBelongsToCategory(row, category)).length);
   });
   document.querySelectorAll("[data-category]").forEach(node => node.classList.toggle("active", node.dataset.category === state.category));
-  $("#contextLabel").textContent = (state.folder === "all" ? "全部" : folderName(state.folder)) + " · " + CATEGORIES[state.category].label;
-  $("#pageTitle").textContent = rows.length + (USER_CATEGORIES.has(state.category) ? " 位用户" : " 条可回看的内容");
   const postOnlyFilters = USER_CATEGORIES.has(state.category) ? [] : [state.filters.contentType !== "all", state.filters.postType !== "all"];
   const activeFilters = [...postOnlyFilters, state.filters.startDate, state.filters.endDate, state.filters.oldest].filter(Boolean).length;
   $("#filterCount").textContent = activeFilters ? String(activeFilters) : "";

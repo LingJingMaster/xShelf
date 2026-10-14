@@ -739,6 +739,15 @@ function bindTheme() {
   };
 }
 
+function bindStickyBars() {
+  const topbar = $(".topbar");
+  const updateHeight = () => {
+    document.documentElement.style.setProperty("--topbar-sticky-height", Math.ceil(topbar.getBoundingClientRect().height) + "px");
+  };
+  updateHeight();
+  new ResizeObserver(updateHeight).observe(topbar);
+}
+
 function resetClearDialog() {
   $("#clearWarning").hidden = false;
   $("#clearFinal").hidden = true;
@@ -857,6 +866,7 @@ function bindEvents() {
 
 async function start() {
   bindTheme();
+  bindStickyBars();
   bindClearData();
   bindEvents();
   state.posts = await getAll("posts");

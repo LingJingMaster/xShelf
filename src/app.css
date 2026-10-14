@@ -24,6 +24,7 @@
   --serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
   --sans: "Avenir Next", Avenir, "PingFang SC", "Microsoft YaHei", sans-serif;
   --sidebar: 238px;
+  --topbar-sticky-height: 58px;
 }
 html[data-theme="dark"] {
   --ground: #101411;
@@ -85,7 +86,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .danger-button { min-height: 36px; padding: 0 14px; color: #fff; background: #a11d1d; border: 0; border-radius: 8px; }
 html[data-theme="dark"] .form-grid input:not([type="checkbox"]), html[data-theme="dark"] .form-grid select, html[data-theme="dark"] .field-stack input, html[data-theme="dark"] .field-stack select { background: var(--paper-2); }
 .main { min-width: 0; padding: 18px clamp(18px, 3vw, 42px) 56px; }
-.topbar { display: flex; gap: 8px; align-items: center; }
+.topbar { position: sticky; top: 0; z-index: 6; display: flex; gap: 8px; align-items: center; padding: 8px 0; background: var(--ground); }
 .content-tabs { display: flex; align-items: center; gap: 3px; padding: 3px; background: var(--chip); border: 1px solid var(--line); border-radius: 10px; }
 .content-tabs button { display: flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 11px; color: var(--ink); background: transparent; border: 0; border-radius: 7px; white-space: nowrap; }
 .content-tabs button small { min-width: 24px; padding: 1px 6px; color: var(--faint); background: var(--ground); border-radius: 99px; }
@@ -100,7 +101,7 @@ kbd { padding: 1px 6px; color: var(--faint); background: var(--paper-2); border:
 .quiet-button:disabled { color: var(--faint); background: transparent; cursor: default; opacity: .65; }
 .ink-button { color: var(--paper); background: var(--ink); border: 1px solid var(--ink); }
 .ink-button:disabled { color: var(--faint); background: var(--paper-2); border-color: var(--line); cursor: default; opacity: .65; }
-.shelf-head { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-start; margin: 14px 0 5px; padding: 10px 1px; background: var(--ground); box-shadow: 0 1px 0 var(--line); }
+.shelf-head { position: sticky; top: var(--topbar-sticky-height); z-index: 5; display: flex; align-items: center; justify-content: flex-start; margin: 6px 0 5px; padding: 10px 1px; background: var(--ground); box-shadow: 0 1px 0 var(--line); }
 .shelf-tools { display: flex; align-items: center; gap: 8px; }
 .shelf-head .quiet-button, .shelf-head .ink-button, .delete-selected { min-height: 36px; }
 .shelf-head p, .dialog-head p { margin: 0 0 2px; color: var(--muted); font-size: 12px; }

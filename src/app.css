@@ -100,7 +100,7 @@ kbd { padding: 1px 6px; color: var(--faint); background: var(--paper-2); border:
 .quiet-button:disabled { color: var(--faint); background: transparent; cursor: default; opacity: .65; }
 .ink-button { color: var(--paper); background: var(--ink); border: 1px solid var(--ink); }
 .ink-button:disabled { color: var(--faint); background: var(--paper-2); border-color: var(--line); cursor: default; opacity: .65; }
-.shelf-head { display: flex; align-items: center; justify-content: flex-start; margin: 24px 1px 15px; }
+.shelf-head { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-start; margin: 14px 0 5px; padding: 10px 1px; background: var(--ground); box-shadow: 0 1px 0 var(--line); }
 .shelf-tools { display: flex; align-items: center; gap: 8px; }
 .shelf-head .quiet-button, .shelf-head .ink-button, .delete-selected { min-height: 36px; }
 .shelf-head p, .dialog-head p { margin: 0 0 2px; color: var(--muted); font-size: 12px; }

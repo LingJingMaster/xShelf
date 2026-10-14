@@ -174,8 +174,15 @@ dialog::backdrop { background: rgba(23,32,27,.42); backdrop-filter: blur(2px); }
 .field-error { min-height: 18px; margin-top: 4px; color: var(--danger); font-weight: 600; }
 .field-stack input:focus { border-color: var(--green); }
 #batchFolderDialog .field-stack { font-size: 14px; }
-#batchFolderDialog .field-stack select { font-size: 15px; }
 #batchFolderDialog .field-stack small { font-size: 13px; line-height: 1.5; }
+.custom-select { position: relative; margin-top: 5px; }
+.custom-select-trigger { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 9px; font-size: 15px; text-align: left; }
+.custom-select-trigger[aria-expanded="true"] { border-color: var(--green); outline: 2px solid color-mix(in srgb, var(--green) 28%, transparent); outline-offset: 2px; }
+.custom-select-menu { position: absolute; inset: calc(100% + 7px) 0 auto; z-index: 2; display: grid; gap: 3px; max-height: 240px; padding: 6px; overflow-y: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 16px 38px rgba(23,32,27,.2); }
+.custom-select-menu[hidden] { display: none; }
+.custom-select-option { min-height: 42px; padding: 8px 11px; color: var(--ink); background: transparent; border: 0; border-radius: 7px; font-size: 15px; text-align: left; }
+.custom-select-option:hover, .custom-select-option:focus-visible { background: var(--paper-2); outline: 0; }
+.custom-select-option.selected { color: var(--green); background: var(--green-soft); }
 .check-row { grid-column: 1 / -1; }
 .dialog-actions, .split-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
 .choice-list { display: grid; gap: 8px; }

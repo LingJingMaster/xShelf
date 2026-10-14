@@ -119,11 +119,17 @@
   <dialog id="batchFolderDialog">
     <form method="dialog" class="dialog-card">
       <div class="dialog-head"><div><p>整理已选内容</p><h2>批量分类</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
-      <label class="field-stack" for="batchFolderSelect">
+      <div class="field-stack">
         <span>移动到文件夹</span>
-        <select id="batchFolderSelect"></select>
+        <div class="custom-select" id="batchFolderPicker">
+          <button class="custom-select-trigger" id="batchFolderTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="batchFolderMenu">
+            <span id="batchFolderLabel">请选择文件夹</span><span aria-hidden="true">⌄</span>
+          </button>
+          <div class="custom-select-menu" id="batchFolderMenu" role="listbox" hidden></div>
+          <input id="batchFolderValue" type="hidden">
+        </div>
         <small id="batchFolderCopy"></small>
-      </label>
+      </div>
       <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="ink-button" id="confirmBatchFolder" type="button" disabled>确认移动</button></div>
     </form>
   </dialog>

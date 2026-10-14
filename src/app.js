@@ -276,13 +276,50 @@ function mediaCell(row, compact = false) {
   return element("div", { className: className + " media-empty", text: "—" });
 }
 
+function closeBatchFolderMenu() {
+  $("#batchFolderMenu").hidden = true;
+  $("#batchFolderTrigger").setAttribute("aria-expanded", "false");
+}
+
+function openBatchFolderMenu() {
+  $("#batchFolderMenu").hidden = false;
+  $("#batchFolderTrigger").setAttribute("aria-expanded", "true");
+  $("#batchFolderMenu").querySelector("button")?.focus();
+}
+
+function chooseBatchFolder(folder) {
+  $("#batchFolderValue").value = folder;
+  $("#batchFolderLabel").textContent = folderName(folder);
+  $("#confirmBatchFolder").disabled = false;
+  $("#batchFolderMenu").querySelectorAll("button").forEach(button => {
+    const selected = button.dataset.folder === folder;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-selected", String(selected));
+  });
+  closeBatchFolderMenu();
+  $("#batchFolderTrigger").focus();
+}
+
 function openBatchFolderDialog() {
   if (!state.selectedIds.size) return;
-  const select = $("#batchFolderSelect");
-  select.replaceChildren(element("option", { value: "", text: "请选择文件夹", disabled: "", selected: "" }));
-  folders().forEach(folder => select.append(element("option", { value: folder, text: folderName(folder) })));
+  const menu = $("#batchFolderMenu");
+  menu.replaceChildren();
+  folders().forEach(folder => {
+    menu.append(element("button", {
+      className: "custom-select-option",
+      type: "button",
+      role: "option",
+      text: folderName(folder),
+      dataset: { folder },
+      "aria-selected": "false",
+      onclick: () => chooseBatchFolder(folder)
+    }));
+  });
+  $("#batchFolderValue").value = "";
+  $("#batchFolderLabel").textContent = "请选择文件夹";
   $("#batchFolderCopy").textContent = "将移动已选择的 " + state.selectedIds.size + " 条内容。";
   $("#confirmBatchFolder").disabled = true;
+  closeBatchFolderMenu();
   $("#batchFolderDialog").showModal();
 }
 
@@ -812,9 +849,31 @@ function bindEvents() {
   });
   $("#filterButton").onclick = () => $("#filterDialog").showModal();
   $("#batchFolderButton").onclick = openBatchFolderDialog;
-  $("#batchFolderSelect").onchange = event => { $("#confirmBatchFolder").disabled = !event.target.value; };
+  $("#batchFolderTrigger").onclick = () => {
+    if ($("#batchFolderMenu").hidden) openBatchFolderMenu();
+    else closeBatchFolderMenu();
+  };
+  $("#batchFolderPicker").addEventListener("keydown", event => {
+    const options = [...$("#batchFolderMenu").querySelectorAll("button")];
+    if (event.key === "Escape" && !$("#batchFolderMenu").hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeBatchFolderMenu();
+      $("#batchFolderTrigger").focus();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+    event.preventDefault();
+    if ($("#batchFolderMenu").hidden) return openBatchFolderMenu();
+    const current = options.indexOf(document.activeElement);
+    const next = event.key === "ArrowDown" ? Math.min(options.length - 1, current + 1) : Math.max(0, current - 1);
+    options[next]?.focus();
+  });
+  document.addEventListener("click", event => {
+    if (!event.target.closest("#batchFolderPicker")) closeBatchFolderMenu();
+  });
   $("#confirmBatchFolder").onclick = async () => {
-    const folder = $("#batchFolderSelect").value;
+    const folder = $("#batchFolderValue").value;
     const ids = new Set(state.selectedIds);
     if (!folder || !ids.size) return;
     const store = CATEGORIES[state.category].store;

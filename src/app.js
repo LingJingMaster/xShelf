@@ -18,7 +18,7 @@ const USER_CATEGORIES = new Set(["following", "blocked"]);
 const state = {
   posts: [],
   users: [],
-  category: "bookmark",
+  category: "like",
   tag: "all",
   view: "compact",
   tags: [],
@@ -862,7 +862,7 @@ async function bindClearData() {
     state.users = [];
     state.tags = [];
     state.selectedIds.clear();
-    state.category = "bookmark";
+    state.category = "like";
     state.tag = "all";
     $("#clearDialog").close();
     resetClearDialog();

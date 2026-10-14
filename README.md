@@ -4,13 +4,13 @@
 
 ## 中文
 
-xShelf 是一款本地优先的 Chrome 扩展，用于同步、搜索、整理、导出和备份个人 X 数据。它支持书签、喜欢、自己发布的推文与回复、正在关注的账号和已屏蔽的账号。
+xShelf 是一款本地优先的 Chrome 扩展，用于同步、搜索、整理、导出和备份个人 X 数据。它支持喜欢、书签、自己发布的推文与回复、正在关注的账号和已屏蔽的账号。
 
 所有资料都保存在扩展自身的 IndexedDB 中。xShelf 没有用户账号、分析 SDK、支付系统或远程服务器。
 
 ### 主要功能
 
-- 增量同步书签、喜欢、推文、回复、正在关注和已屏蔽账号
+- 增量同步喜欢、书签、推文、回复、正在关注和已屏蔽账号
 - 将同一条推文的书签记录与喜欢记录分开保存
 - 兼容 X 新旧身份、头像和媒体响应字段
 - 显示来自 `pbs.twimg.com`、`abs.twimg.com` 和 X 视频域名的媒体
@@ -42,8 +42,8 @@ X 使用未公开且没有正式文档的内部 API。X 修改请求结构后，
 
 各分类使用的 X 页面：
 
-- 书签：`https://x.com/i/bookmarks`
 - 喜欢：`https://x.com/i/history/likes`
+- 书签：`https://x.com/i/bookmarks`
 - 推文：`https://x.com/{当前账号}`
 - 回复：`https://x.com/{当前账号}/with_replies`
 - 正在关注：当前账号的关注列表
@@ -74,26 +74,24 @@ xShelf 不读取或保存 X Cookie。捕获到的 `authorization` 和 `x-csrf-to
 - 删除标签只会移除本地标签关联
 - xShelf 不会取消喜欢、移除书签、取消关注、解除屏蔽或删除 X 推文
 - xShelf 不包含 Twillot 私有 API、AI 分类、计费、分析追踪或周报生成
-- 逆向分析资料位于 `docs/`
-- 当前实现状态位于 `docs/implementation-status.md`
 
 由于扩展需要观察和重放 X 的授权请求头，并依赖 X 的内部 GraphQL API，当前版本更适合以“加载已解压的扩展程序”方式个人使用，并不适合直接提交 Chrome 应用商店审核。
 
 ### 许可证
 
-当前仓库未附带开源许可证。未经许可，不应将代码视为可自由复制、修改或重新分发的开源软件。
+本项目采用 [MIT License](LICENSE)。
 
 ---
 
 ## English
 
-xShelf is a local-first Chrome extension for syncing, searching, organizing, exporting, and backing up personal X data. It supports bookmarks, likes, your posts and replies, accounts you follow, and blocked accounts.
+xShelf is a local-first Chrome extension for syncing, searching, organizing, exporting, and backing up personal X data. It supports likes, bookmarks, your posts and replies, accounts you follow, and blocked accounts.
 
 All data stays in IndexedDB inside the extension. xShelf has no user accounts, analytics SDK, payment system, or remote server.
 
 ### Features
 
-- Incrementally sync bookmarks, likes, posts, replies, following, and blocked accounts
+- Incrementally sync likes, bookmarks, posts, replies, following, and blocked accounts
 - Keep bookmark and like copies of the same post as separate records
 - Read both legacy and current X identity, avatar, and media response fields
 - Render media from `pbs.twimg.com`, `abs.twimg.com`, and X video domains
@@ -125,8 +123,8 @@ X uses private, undocumented APIs. Sync may break when X changes its request sha
 
 X pages used for each category:
 
-- Bookmarks: `https://x.com/i/bookmarks`
 - Likes: `https://x.com/i/history/likes`
+- Bookmarks: `https://x.com/i/bookmarks`
 - Posts: `https://x.com/{current-account}`
 - Replies: `https://x.com/{current-account}/with_replies`
 - Following: the current account's following list
@@ -157,11 +155,9 @@ Each category normally needs to be observed only once per browser session. Captu
 - Deleting a tag removes only local tag associations
 - xShelf does not unlike, unbookmark, unfollow, unblock, or delete posts on X
 - xShelf does not include Twillot private APIs, AI classification, billing, analytics, or weekly report generation
-- Reverse-engineering notes live in `docs/`
-- The current implementation matrix lives in `docs/implementation-status.md`
 
 Because the extension observes and replays X authorization headers and depends on private X GraphQL APIs, the current build is better suited to personal unpacked use than direct Chrome Web Store publication.
 
 ### License
 
-This repository currently has no open-source license. The code should not be treated as freely copyable, modifiable, or redistributable without permission.
+This project is licensed under the [MIT License](LICENSE).

@@ -23,8 +23,8 @@
         <button class="nav-item" data-category="following"><span>正在关注</span><small data-count="following">0</small></button>
         <button class="nav-item" data-category="blocked"><span>已屏蔽</span><small data-count="blocked">0</small></button>
       </nav>
-      <div class="folder-head"><span>文件夹</span><button id="newFolder" aria-label="新建文件夹">＋</button></div>
-      <nav id="folderList" class="folder-list" aria-label="文件夹"></nav>
+      <div class="tag-head"><span>标签</span><span class="tag-head-actions"><button id="manageTags" type="button">管理</button><button id="newTag" type="button" aria-label="新建标签">＋</button></span></div>
+      <nav id="tagList" class="tag-list" aria-label="标签"></nav>
       <div class="sidebar-foot">
         <button class="text-button" id="themeButton" type="button" aria-pressed="false">深色模式</button>
         <button class="text-button" id="importButton">导入资料</button>
@@ -58,7 +58,7 @@
           <button data-view="stats" aria-pressed="false" title="统计视图">◒</button>
           </div>
           <button class="quiet-button" id="filterButton">筛选 <span id="filterCount"></span></button>
-          <button class="quiet-button" id="batchFolderButton" type="button" disabled>批量分类</button>
+          <button class="quiet-button" id="batchTagButton" type="button" disabled>批量标签</button>
           <button class="ink-button" id="exportButton">导出</button>
           <button class="delete-selected" id="deleteSelected" type="button" disabled>删除</button>
         </div>
@@ -69,16 +69,16 @@
     </main>
   </div>
 
-  <dialog id="folderDialog">
-    <form class="dialog-card" id="folderForm">
-      <div class="dialog-head"><div><p>整理本地资料</p><h2>新建文件夹</h2></div><button class="icon-button" type="submit" value="cancel" aria-label="关闭">×</button></div>
-      <label class="field-stack" for="folderName">
-        <span>文件夹名称</span>
-        <input id="folderName" name="name" type="text" maxlength="40" autocomplete="off" placeholder="例如：待读、工具、灵感">
-        <small>创建后可在卡片的分类菜单中选择。</small>
-        <strong class="field-error" id="folderError" role="alert"></strong>
+  <dialog id="tagCreateDialog">
+    <form class="dialog-card" id="tagCreateForm">
+      <div class="dialog-head"><div><p>整理本地资料</p><h2>新建标签</h2></div><button class="icon-button" type="submit" value="cancel" aria-label="关闭">×</button></div>
+      <label class="field-stack" for="tagName">
+        <span>标签名称</span>
+        <input id="tagName" name="name" type="text" maxlength="24" autocomplete="off" placeholder="例如：待读、工具、灵感">
+        <small>同一条内容可以添加多个标签。</small>
+        <strong class="field-error" id="tagCreateError" role="alert"></strong>
       </label>
-      <div class="dialog-actions"><button class="quiet-button" type="submit" value="cancel">取消</button><button class="ink-button" type="submit" value="create">创建文件夹</button></div>
+      <div class="dialog-actions"><button class="quiet-button" type="submit" value="cancel">取消</button><button class="ink-button" type="submit" value="create">创建标签</button></div>
     </form>
   </dialog>
 
@@ -116,21 +116,27 @@
     </form>
   </dialog>
 
-  <dialog id="batchFolderDialog">
+  <dialog id="manageTagsDialog">
     <form method="dialog" class="dialog-card">
-      <div class="dialog-head"><div><p>整理已选内容</p><h2>批量分类</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
-      <div class="field-stack">
-        <span>移动到文件夹</span>
-        <div class="custom-select" id="batchFolderPicker">
-          <button class="custom-select-trigger" id="batchFolderTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="batchFolderMenu">
-            <span id="batchFolderLabel">请选择文件夹</span><span class="select-chevron" aria-hidden="true"></span>
-          </button>
-          <div class="custom-select-menu" id="batchFolderMenu" role="listbox" hidden></div>
-          <input id="batchFolderValue" type="hidden">
-        </div>
-        <small id="batchFolderCopy"></small>
-      </div>
-      <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="ink-button" id="confirmBatchFolder" type="button" disabled>确认移动</button></div>
+      <div class="dialog-head"><div><p>重命名或删除本地标签</p><h2>管理标签</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <div class="tag-manager-list" id="tagManagerList"></div>
+      <div class="dialog-actions"><button class="ink-button" value="cancel">完成</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="editTagsDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><div><p>一条内容可拥有多个标签</p><h2>编辑标签</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <div class="tag-choice-list" id="editTagChoices"></div>
+      <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="ink-button" id="saveTags" type="button">保存标签</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="batchTagsDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><div><p id="batchTagCopy">修改已选内容</p><h2>批量标签</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <div class="tag-choice-list" id="batchTagChoices"></div>
+      <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="quiet-button" id="removeBatchTags" type="button" disabled>移除标签</button><button class="ink-button" id="addBatchTags" type="button" disabled>添加标签</button></div>
     </form>
   </dialog>
 

@@ -18,10 +18,10 @@ analytics SDK, payment system, or remote xShelf server.
 - Fall back to a permission-scoped background image proxy when an extension page
   cannot render `pbs.twimg.com` directly
 - Search phrases, `and`, `or`, and `*` wildcards
-- Filter posts by folder, date, content type, and post type
+- Filter posts by tag, date, content type, and post type
 - Search user names, handles, and descriptions
 - Switch between compact rows, a media gallery, and local statistics
-- Organize every category into local folders
+- Add multiple local tags to every saved item
 - Export the current category and filters as JSON, CSV, or standalone HTML
 - Back up and restore all local stores as a ZIP containing JSONL files
 - Import compatible JSON and JSONL exports

@@ -25,7 +25,7 @@ export function rowsToMarkdown(rows, options = {}) {
     lines.push("## " + (index + 1) + ". " + heading(author), "");
     const metadata = [
       row.createdAt ? "日期：" + new Date(row.createdAt * 1000).toISOString().slice(0, 10) : "",
-      row.folder ? "文件夹：" + row.folder : ""
+      row.tags?.length ? "标签：" + row.tags.join("、") : ""
     ].filter(Boolean).join(" · ");
     if (metadata) lines.push(metadata, "");
     lines.push(body, "");

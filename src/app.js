@@ -3,6 +3,7 @@ import { filterPosts } from "./lib/search.js";
 import { rowsForExport, rowsToMarkdown } from "./lib/export.js";
 import { isAllowedPreviewUrl } from "./lib/link-preview.js";
 import { parseTimelineResponse } from "./lib/x-sync.js";
+import { applyTagsToRows, rowTags } from "./lib/tags.js";
 
 const $ = selector => document.querySelector(selector);
 const CATEGORIES = {
@@ -18,9 +19,9 @@ const state = {
   posts: [],
   users: [],
   category: "bookmark",
-  folder: "all",
+  tag: "all",
   view: "compact",
-  customFolders: [],
+  tags: [],
   selectedIds: new Set(),
   filters: { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false },
   captureWaitId: 0,
@@ -38,6 +39,7 @@ const previewLoading = new Set();
 const previewFailed = new Set();
 const imageProxyRequests = new Map();
 let toastTimer;
+let editingTagRow = null;
 
 function showToast(message) {
   toast.textContent = message;
@@ -69,10 +71,6 @@ function runtimeMessage(message) {
   });
 }
 
-function folderName(folder) {
-  return folder === "unsorted" ? "未分类" : folder;
-}
-
 function formatDate(seconds) {
   if (!seconds) return "日期未知";
   return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "short", day: "numeric" }).format(new Date(seconds * 1000));
@@ -94,7 +92,7 @@ function categoryRows() {
 }
 
 function currentRows() {
-  const filters = { ...state.filters, folder: state.folder };
+  const filters = { ...state.filters, tag: state.tag };
   if (USER_CATEGORIES.has(state.category)) {
     filters.contentType = "all";
     filters.postType = "all";
@@ -102,67 +100,127 @@ function currentRows() {
   return filterPosts(categoryRows(), filters);
 }
 
-function folders() {
-  const values = new Set(state.customFolders);
-  categoryRows().forEach(row => values.add(row.folder || "unsorted"));
-  values.add("unsorted");
-  return [...values].sort((a, b) => a === "unsorted" ? -1 : b === "unsorted" ? 1 : a.localeCompare(b, "zh-CN"));
+function tagNames() {
+  const values = new Set(state.tags);
+  currentDataset().forEach(row => rowTags(row).forEach(tag => values.add(tag)));
+  return [...values].sort((a, b) => a.localeCompare(b, "zh-CN"));
 }
 
-function openFolderDialog() {
-  const form = $("#folderForm");
+function openTagCreateDialog() {
+  const form = $("#tagCreateForm");
   form.reset();
-  $("#folderError").textContent = "";
-  $("#folderDialog").showModal();
+  $("#tagCreateError").textContent = "";
+  $("#tagCreateDialog").showModal();
   requestAnimationFrame(() => form.elements.name.focus());
 }
 
-async function createFolder(name) {
+async function createTag(name) {
   const normalized = name.trim().replace(/\s+/g, " ");
-  const error = $("#folderError");
+  const error = $("#tagCreateError");
   if (!normalized) {
-    error.textContent = "请输入文件夹名称。";
+    error.textContent = "请输入标签名称。";
     return false;
   }
-  if (normalized.length > 40) {
-    error.textContent = "名称最多 40 个字符。";
+  if (normalized.length > 24) {
+    error.textContent = "名称最多 24 个字符。";
     return false;
   }
-  if (["all", "unsorted", "全部", "未分类"].includes(normalized.toLowerCase())) {
+  if (["all", "untagged", "全部", "无标签"].includes(normalized.toLowerCase())) {
     error.textContent = "这个名称由 xShelf 保留，请换一个。";
     return false;
   }
-  if (folders().some(folder => folder.toLocaleLowerCase("zh-CN") === normalized.toLocaleLowerCase("zh-CN"))) {
-    error.textContent = "这个文件夹已经存在。";
+  if (tagNames().some(tag => tag.toLocaleLowerCase("zh-CN") === normalized.toLocaleLowerCase("zh-CN"))) {
+    error.textContent = "这个标签已经存在。";
     return false;
   }
-  state.customFolders.push(normalized);
-  await setSetting("customFolders", state.customFolders);
-  state.folder = normalized;
+  state.tags.push(normalized);
+  await setSetting("tags", state.tags);
   render();
-  showToast("文件夹已创建，可从卡片菜单移动内容。");
+  showToast("标签已创建。现在可以添加到内容。");
   return true;
 }
 
-function renderFolders() {
-  const list = $("#folderList");
+async function updateTagEverywhere(oldTag, nextTag = null) {
+  const updateRows = rows => rows.map(row => {
+    if (!rowTags(row).includes(oldTag)) return row;
+    const tags = rowTags(row).filter(tag => tag !== oldTag);
+    if (nextTag) tags.push(nextTag);
+    return { ...row, tags: [...new Set(tags)] };
+  });
+  const nextPosts = updateRows(state.posts);
+  const nextUsers = updateRows(state.users);
+  const changedPosts = nextPosts.filter((row, index) => row !== state.posts[index]);
+  const changedUsers = nextUsers.filter((row, index) => row !== state.users[index]);
+  await Promise.all([putMany("posts", changedPosts), putMany("users", changedUsers)]);
+  state.posts = nextPosts;
+  state.users = nextUsers;
+  state.tags = tagNames().filter(tag => tag !== oldTag);
+  if (nextTag) state.tags.push(nextTag);
+  state.tags = [...new Set(state.tags)].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  await setSetting("tags", state.tags);
+  if (state.tag === oldTag) state.tag = nextTag || "all";
+}
+
+function renderTagManager() {
+  const list = $("#tagManagerList");
   list.replaceChildren();
-  const all = element("button", {
-    className: "folder-item" + (state.folder === "all" ? " active" : ""),
-    onclick: () => selectFolder("all")
-  }, [element("span", { text: "全部" }), element("small", { text: String(categoryRows().length) })]);
-  list.append(all);
-  for (const folder of folders()) {
-    const count = categoryRows().filter(row => (row.folder || "unsorted") === folder).length;
+  const names = tagNames();
+  if (!names.length) {
+    list.append(element("p", { className: "tag-choice-empty", text: "还没有标签。" }));
+    return;
+  }
+  names.forEach(tag => {
+    const input = element("input", { type: "text", value: tag, maxlength: "24", "aria-label": "标签名称" });
+    const rename = element("button", { className: "quiet-button", type: "button", text: "重命名", onclick: async () => {
+      const next = input.value.trim().replace(/\s+/g, " ");
+      if (!next || next === tag) return;
+      if (tagNames().some(name => name !== tag && name.toLocaleLowerCase("zh-CN") === next.toLocaleLowerCase("zh-CN"))) {
+        showToast("这个标签已经存在。");
+        return;
+      }
+      await updateTagEverywhere(tag, next);
+      renderTagManager();
+      render();
+      showToast("标签已重命名。");
+    }});
+    const removeTag = element("button", { className: "tag-manager-delete", type: "button", text: "删除", onclick: async () => {
+      await updateTagEverywhere(tag);
+      renderTagManager();
+      render();
+      showToast("标签已删除，内容记录仍然保留。");
+    }});
+    list.append(element("div", { className: "tag-manager-row" }, [input, rename, removeTag]));
+  });
+}
+
+function openTagManager() {
+  renderTagManager();
+  $("#manageTagsDialog").showModal();
+}
+
+function renderTags() {
+  const list = $("#tagList");
+  const rows = categoryRows();
+  list.replaceChildren(element("button", {
+    className: "tag-item" + (state.tag === "all" ? " active" : ""),
+    onclick: () => selectTag("all")
+  }, [element("span", { text: "全部" }), element("small", { text: String(rows.length) })]));
+  const untaggedCount = rows.filter(row => rowTags(row).length === 0).length;
+  list.append(element("button", {
+    className: "tag-item" + (state.tag === "untagged" ? " active" : ""),
+    onclick: () => selectTag("untagged")
+  }, [element("span", { text: "无标签" }), element("small", { text: String(untaggedCount) })]));
+  for (const tag of tagNames()) {
+    const count = rows.filter(row => rowTags(row).includes(tag)).length;
     list.append(element("button", {
-      className: "folder-item" + (state.folder === folder ? " active" : ""),
-      onclick: () => selectFolder(folder)
-    }, [element("span", { text: folderName(folder) }), element("small", { text: String(count) })]));
+      className: "tag-item" + (state.tag === tag ? " active" : ""),
+      onclick: () => selectTag(tag)
+    }, [element("span", { text: tag }), element("small", { text: String(count) })]));
   }
 }
 
-function selectFolder(folder) {
-  state.folder = folder;
+function selectTag(tag) {
+  state.tag = tag;
   state.selectedIds.clear();
   $("#app").classList.remove("nav-open");
   render();
@@ -276,51 +334,38 @@ function mediaCell(row, compact = false) {
   return element("div", { className: className + " media-empty", text: "—" });
 }
 
-function closeBatchFolderMenu() {
-  $("#batchFolderMenu").hidden = true;
-  $("#batchFolderTrigger").setAttribute("aria-expanded", "false");
-}
-
-function openBatchFolderMenu() {
-  $("#batchFolderMenu").hidden = false;
-  $("#batchFolderTrigger").setAttribute("aria-expanded", "true");
-  $("#batchFolderMenu").querySelector("button")?.focus();
-}
-
-function chooseBatchFolder(folder) {
-  $("#batchFolderValue").value = folder;
-  $("#batchFolderLabel").textContent = folderName(folder);
-  $("#confirmBatchFolder").disabled = false;
-  $("#batchFolderMenu").querySelectorAll("button").forEach(button => {
-    const selected = button.dataset.folder === folder;
-    button.classList.toggle("selected", selected);
-    button.setAttribute("aria-selected", String(selected));
+function renderTagChoices(container, selected = []) {
+  const selectedSet = new Set(selected);
+  container.replaceChildren();
+  const names = tagNames();
+  if (!names.length) {
+    container.append(element("p", { className: "tag-choice-empty", text: "还没有标签。先在侧栏新建一个标签。" }));
+    return;
+  }
+  names.forEach(tag => {
+    const input = element("input", { type: "checkbox", value: tag });
+    input.checked = selectedSet.has(tag);
+    container.append(element("label", { className: "tag-choice" }, [input, element("span", { text: tag })]));
   });
-  closeBatchFolderMenu();
-  $("#batchFolderTrigger").focus();
 }
 
-function openBatchFolderDialog() {
+function checkedTags(container) {
+  return [...container.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
+}
+
+function openEditTagsDialog(row) {
+  editingTagRow = row;
+  renderTagChoices($("#editTagChoices"), rowTags(row));
+  $("#editTagsDialog").showModal();
+}
+
+function openBatchTagsDialog() {
   if (!state.selectedIds.size) return;
-  const menu = $("#batchFolderMenu");
-  menu.replaceChildren();
-  folders().forEach(folder => {
-    menu.append(element("button", {
-      className: "custom-select-option",
-      type: "button",
-      role: "option",
-      text: folderName(folder),
-      dataset: { folder },
-      "aria-selected": "false",
-      onclick: () => chooseBatchFolder(folder)
-    }));
-  });
-  $("#batchFolderValue").value = "";
-  $("#batchFolderLabel").textContent = "请选择文件夹";
-  $("#batchFolderCopy").textContent = "将移动已选择的 " + state.selectedIds.size + " 条内容。";
-  $("#confirmBatchFolder").disabled = true;
-  closeBatchFolderMenu();
-  $("#batchFolderDialog").showModal();
+  renderTagChoices($("#batchTagChoices"));
+  $("#batchTagCopy").textContent = "将修改已选择的 " + state.selectedIds.size + " 条内容。";
+  $("#addBatchTags").disabled = true;
+  $("#removeBatchTags").disabled = true;
+  $("#batchTagsDialog").showModal();
 }
 
 function openDeleteDialog() {
@@ -333,12 +378,12 @@ function updateSelectionUi(rows = currentRows()) {
   const visibleIds = rows.map(row => row.id);
   const selectedVisible = visibleIds.filter(id => state.selectedIds.has(id)).length;
   const button = $("#deleteSelected");
-  const batchFolderButton = $("#batchFolderButton");
+  const batchTagButton = $("#batchTagButton");
   const exportButton = $("#exportButton");
   button.disabled = state.selectedIds.size === 0;
-  batchFolderButton.disabled = state.selectedIds.size === 0;
+  batchTagButton.disabled = state.selectedIds.size === 0;
   button.textContent = state.selectedIds.size ? "删除 " + state.selectedIds.size : "删除";
-  batchFolderButton.textContent = state.selectedIds.size ? "批量分类 " + state.selectedIds.size : "批量分类";
+  batchTagButton.textContent = state.selectedIds.size ? "批量标签 " + state.selectedIds.size : "批量标签";
   exportButton.textContent = state.selectedIds.size ? "导出 " + state.selectedIds.size : "导出";
   const master = $("#selectAll");
   if (master) {
@@ -361,6 +406,20 @@ function selectionCheckbox(row) {
     updateSelectionUi();
   });
   return input;
+}
+
+function tagEditor(row) {
+  const tags = rowTags(row);
+  const children = tags.length
+    ? tags.map(tag => element("span", { className: "tag-chip", text: tag }))
+    : [element("span", { className: "tag-empty", text: "无标签" })];
+  children.push(element("span", { className: "tag-edit-mark", text: "编辑" }));
+  return element("button", {
+    className: "tag-editor",
+    type: "button",
+    "aria-label": "编辑标签",
+    onclick: () => openEditTagsDialog(row)
+  }, children);
 }
 
 function makeCard(row) {
@@ -388,27 +447,16 @@ function makeCard(row) {
   textLink.style.color = "inherit";
   textLink.style.textDecoration = "none";
 
-  const select = element("select", { className: "folder-select", "aria-label": "移动到文件夹" });
-  const folderPicker = element("div", { className: "folder-picker" }, [select]);
-  for (const folder of folders()) {
-    const option = element("option", { value: folder, text: folderName(folder) });
-    option.selected = (row.folder || "unsorted") === folder;
-    select.append(option);
-  }
-  select.addEventListener("change", async () => {
-    row.folder = select.value;
-    await putMany(CATEGORIES[state.category].store, [row]);
-    render();
-  });
+  const tags = tagEditor(row);
   const detail = isUser ? (row.followersCount || 0).toLocaleString() + " 关注者" : (row.contentTypes?.join(" / ") || "");
   const foot = element("div", { className: "card-foot" }, [
     element("span", { text: formatDate(row.createdAt) }),
     element("span", { text: detail }),
-    folderPicker
+    tags
   ]);
   if (state.view === "compact") {
-    const folderCell = element("div", { className: "compact-folder" }, [folderPicker, element("small", { text: formatDate(row.createdAt) })]);
-    return element("article", { className: "bookmark-card" + (state.selectedIds.has(row.id) ? " selected" : "") }, [checkbox, author, folderCell, textLink, isUser ? element("div", { className: "compact-media media-empty", text: "—" }) : mediaCell(row, true)]);
+    const tagCell = element("div", { className: "compact-tags" }, [tags, element("small", { text: formatDate(row.createdAt) })]);
+    return element("article", { className: "bookmark-card" + (state.selectedIds.has(row.id) ? " selected" : "") }, [checkbox, author, tagCell, textLink, isUser ? element("div", { className: "compact-media media-empty", text: "—" }) : mediaCell(row, true)]);
   }
   const children = [author];
   const textOnly = !displayMedia(row);
@@ -419,12 +467,16 @@ function makeCard(row) {
 
 function renderStats(rows) {
   const counts = new Map();
-  rows.forEach(post => counts.set(post.folder || "unsorted", (counts.get(post.folder || "unsorted") || 0) + 1));
+  rows.forEach(row => {
+    const tags = rowTags(row);
+    if (!tags.length) counts.set("无标签", (counts.get("无标签") || 0) + 1);
+    tags.forEach(tag => counts.set(tag, (counts.get(tag) || 0) + 1));
+  });
   const max = Math.max(1, ...counts.values());
   const bars = element("div");
   [...counts.entries()].sort((a, b) => b[1] - a[1]).forEach(([name, count]) => {
     bars.append(element("div", { className: "bar-row" }, [
-      element("span", { text: folderName(name) }),
+      element("span", { text: name }),
       element("div", { className: "bar-track" }, [element("div", { className: "bar-fill", style: "width:" + (count / max * 100) + "%" })]),
       element("span", { text: String(count) })
     ]));
@@ -433,7 +485,7 @@ function renderStats(rows) {
   const unit = USER_CATEGORIES.has(state.category) ? "位用户" : "条内容";
   stage.append(element("div", { className: "stats-board" }, [
     element("section", { className: "stat-panel" }, [element("div", { className: "big-number", text: String(rows.length) }), element("p", { text: "当前范围内的" + unit }), element("div", { className: "big-number", text: String(people) }), element("p", { text: USER_CATEGORIES.has(state.category) ? "个账号" : "位作者" })]),
-    element("section", { className: "stat-panel" }, [element("p", { text: "文件夹分布" }), bars])
+    element("section", { className: "stat-panel" }, [element("p", { text: "标签分布" }), bars])
   ]));
 }
 
@@ -453,7 +505,7 @@ function renderEmpty(hasAnyRows) {
 }
 
 function render() {
-  renderFolders();
+  renderTags();
   const rows = currentRows();
   document.querySelectorAll("[data-count]").forEach(node => {
     const category = node.dataset.count;
@@ -478,7 +530,7 @@ function render() {
       stage.append(element("div", { className: "compact-header" }, [
         selectAll,
         element("span", { text: "用户" }),
-        element("span", { text: "文件夹" }),
+        element("span", { text: "标签" }),
         element("span", { text: USER_CATEGORIES.has(state.category) ? "简介" : "内容" }),
         element("span", { text: USER_CATEGORIES.has(state.category) ? "" : "媒体" })
       ]));
@@ -581,7 +633,7 @@ async function syncCategory(categoryOverride = state.category) {
       const newOnPage = parsed.rows.filter(row => !known.has(row.id) && !legacyReplies.some(item => item.tweetId === row.tweetId)).length;
       const merged = parsed.rows.map(row => {
         const old = known.get(row.id) || legacyReplies.find(item => item.tweetId === row.tweetId);
-        return old ? { ...row, folder: old.folder, savedAt: old.savedAt || old.bookmarkedAt || row.savedAt } : row;
+        return old ? { ...row, tags: rowTags(old), savedAt: old.savedAt || old.bookmarkedAt || row.savedAt } : row;
       });
       await putMany(config.store, merged);
       merged.forEach(row => known.set(row.id, row));
@@ -623,19 +675,19 @@ function exportRows(format) {
   if (format === "json") {
     downloadBlob(new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }), "xshelf-" + stamp + ".json");
   } else if (format === "markdown") {
-    const title = "xShelf · " + CATEGORIES[state.category].label + (state.folder === "all" ? "" : " · " + folderName(state.folder));
+    const title = "xShelf · " + CATEGORIES[state.category].label + (state.tag === "all" ? "" : " · " + (state.tag === "untagged" ? "无标签" : state.tag));
     const markdown = rowsToMarkdown(rows, { title });
     downloadBlob(new Blob([markdown], { type: "text/markdown;charset=utf-8" }), "xshelf-" + state.category + "-" + stamp + ".md");
   } else if (format === "csv") {
     const columns = USER_CATEGORIES.has(state.category)
-      ? ["userId", "authorName", "authorHandle", "description", "followersCount", "followingCount", "postCount", "createdAt", "folder", "url"]
-      : ["tweetId", "authorName", "authorHandle", "text", "createdAt", "folder", "url"];
+      ? ["userId", "authorName", "authorHandle", "description", "followersCount", "followingCount", "postCount", "createdAt", "tags", "url"]
+      : ["tweetId", "authorName", "authorHandle", "text", "createdAt", "tags", "url"];
     const quote = value => '"' + String(value ?? "").replaceAll('"', '""').replaceAll("\n", "\\n") + '"';
     const csv = "\ufeff" + [columns.join(","), ...rows.map(row => columns.map(key => quote(row[key])).join(","))].join("\n");
     downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "xshelf-" + stamp + ".csv");
   } else {
     const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-    const cards = rows.map(row => '<article><p>' + escape(row.text || row.description) + '</p><small>' + escape(row.authorName) + ' ' + escape(row.authorHandle) + ' · ' + escape(folderName(row.folder)) + '</small><a href="' + escape(row.url) + '">在 X 查看</a></article>').join("");
+    const cards = rows.map(row => '<article><p>' + escape(row.text || row.description) + '</p><small>' + escape(row.authorName) + ' ' + escape(row.authorHandle) + ' · ' + escape(rowTags(row).join("、") || "无标签") + '</small><a href="' + escape(row.url) + '">在 X 查看</a></article>').join("");
     const html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>xShelf export</title><style>body{max-width:800px;margin:40px auto;padding:0 20px;background:#e5e7e3;color:#18201b;font:16px Georgia,serif}h1{font-size:42px}article{margin:12px 0;padding:20px;background:#fafaf7;border:1px solid #ccd1cc;border-radius:10px}small{color:#68726b}a{display:block;margin-top:14px;color:#146b50}</style><h1>xShelf</h1>' + cards;
     downloadBlob(new Blob([html], { type: "text/html;charset=utf-8" }), "xshelf-" + stamp + ".html");
   }
@@ -677,7 +729,7 @@ function normalizeImported(row, index) {
     avatarUrl: source.avatarUrl || source.profile_image_url_https || user.profile_image_url_https || "",
     createdAt: typeof created === "number" ? (created > 1e12 ? Math.floor(created / 1000) : created) : Math.floor(Date.parse(created || 0) / 1000) || 0,
     savedAt: source.savedAt || source.bookmarkedAt || Math.floor(Date.now() / 1000),
-    folder: source.folder || "unsorted",
+    tags: Array.isArray(source.tags) ? source.tags : [],
     followersCount: source.followersCount || source.followers_count || 0,
     followingCount: source.followingCount || source.friends_count || 0,
     postCount: source.postCount || source.statuses_count || 0,
@@ -726,7 +778,7 @@ async function importFile(file, backupMode = false) {
     }
     state.posts = await getAll("posts");
     state.users = await getAll("users");
-    state.customFolders = await getSetting("customFolders", []);
+    state.tags = await getSetting("tags", []);
     render();
     if (backupMode) $("#backupDialog").close();
   } catch (error) {
@@ -740,7 +792,7 @@ function handleRuntimeMessage(message) {
     state.awaitingCapture = false;
     $("#syncLight").classList.remove("busy");
     state.category = message.category || state.category;
-    state.folder = "all";
+    state.tag = "all";
     render();
     refreshCaptureStatus().then(() => syncCategory(state.category));
   }
@@ -808,10 +860,10 @@ async function bindClearData() {
     await clearAll();
     state.posts = [];
     state.users = [];
-    state.customFolders = [];
+    state.tags = [];
     state.selectedIds.clear();
     state.category = "bookmark";
-    state.folder = "all";
+    state.tag = "all";
     $("#clearDialog").close();
     resetClearDialog();
     render();
@@ -828,7 +880,7 @@ function bindEvents() {
     const button = event.target.closest("[data-category]");
     if (!button) return;
     state.category = button.dataset.category;
-    state.folder = "all";
+    state.tag = "all";
     state.selectedIds.clear();
     $("#app").classList.remove("nav-open");
     render();
@@ -847,42 +899,36 @@ function bindEvents() {
     render();
   });
   $("#filterButton").onclick = () => $("#filterDialog").showModal();
-  $("#batchFolderButton").onclick = openBatchFolderDialog;
-  $("#batchFolderTrigger").onclick = () => {
-    if ($("#batchFolderMenu").hidden) openBatchFolderMenu();
-    else closeBatchFolderMenu();
-  };
-  $("#batchFolderPicker").addEventListener("keydown", event => {
-    const options = [...$("#batchFolderMenu").querySelectorAll("button")];
-    if (event.key === "Escape" && !$("#batchFolderMenu").hidden) {
-      event.preventDefault();
-      event.stopPropagation();
-      closeBatchFolderMenu();
-      $("#batchFolderTrigger").focus();
-      return;
-    }
-    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
-    event.preventDefault();
-    if ($("#batchFolderMenu").hidden) return openBatchFolderMenu();
-    const current = options.indexOf(document.activeElement);
-    const next = event.key === "ArrowDown" ? Math.min(options.length - 1, current + 1) : Math.max(0, current - 1);
-    options[next]?.focus();
+  $("#batchTagButton").onclick = openBatchTagsDialog;
+  $("#batchTagChoices").addEventListener("change", () => {
+    const hasTags = checkedTags($("#batchTagChoices")).length > 0;
+    $("#addBatchTags").disabled = !hasTags;
+    $("#removeBatchTags").disabled = !hasTags;
   });
-  document.addEventListener("click", event => {
-    if (!event.target.closest("#batchFolderPicker")) closeBatchFolderMenu();
-  });
-  $("#confirmBatchFolder").onclick = async () => {
-    const folder = $("#batchFolderValue").value;
+  const applyBatchTags = async mode => {
+    const selectedTags = checkedTags($("#batchTagChoices"));
     const ids = new Set(state.selectedIds);
-    if (!folder || !ids.size) return;
+    if (!selectedTags.length || !ids.size) return;
     const store = CATEGORIES[state.category].store;
-    const updated = state[store].filter(row => ids.has(row.id)).map(row => ({ ...row, folder }));
+    const nextRows = applyTagsToRows(state[store], ids, selectedTags, mode);
+    const updated = nextRows.filter((row, index) => row !== state[store][index]);
     await putMany(store, updated);
-    state[store] = state[store].map(row => ids.has(row.id) ? { ...row, folder } : row);
+    state[store] = nextRows;
     state.selectedIds.clear();
-    $("#batchFolderDialog").close();
+    $("#batchTagsDialog").close();
     render();
-    showToast("已将 " + updated.length + " 条内容移动到“" + folderName(folder) + "”。");
+    showToast("已为 " + updated.length + " 条内容" + (mode === "add" ? "添加" : "移除") + "标签。");
+  };
+  $("#addBatchTags").onclick = () => applyBatchTags("add");
+  $("#removeBatchTags").onclick = () => applyBatchTags("remove");
+  $("#saveTags").onclick = async () => {
+    if (!editingTagRow) return;
+    editingTagRow.tags = checkedTags($("#editTagChoices"));
+    await putMany(CATEGORIES[state.category].store, [editingTagRow]);
+    editingTagRow = null;
+    $("#editTagsDialog").close();
+    render();
+    showToast("标签已保存。");
   };
   $("#deleteSelected").onclick = openDeleteDialog;
   $("#confirmDeleteSelected").onclick = async () => {
@@ -915,15 +961,16 @@ function bindEvents() {
   $("#restoreInput").onchange = event => event.target.files[0] && importFile(event.target.files[0], true);
   $("#importButton").onclick = () => $("#importInput").click();
   $("#importInput").onchange = event => event.target.files[0] && importFile(event.target.files[0]);
-  $("#newFolder").onclick = openFolderDialog;
-  $("#folderForm").addEventListener("submit", async event => {
+  $("#manageTags").onclick = openTagManager;
+  $("#newTag").onclick = openTagCreateDialog;
+  $("#tagCreateForm").addEventListener("submit", async event => {
     event.preventDefault();
     if (event.submitter?.value === "cancel") {
-      $("#folderDialog").close();
+      $("#tagCreateDialog").close();
       return;
     }
-    const created = await createFolder(event.currentTarget.elements.name.value);
-    if (created) $("#folderDialog").close();
+    const created = await createTag(event.currentTarget.elements.name.value);
+    if (created) $("#tagCreateDialog").close();
   });
 }
 
@@ -934,7 +981,7 @@ async function start() {
   bindEvents();
   state.posts = await getAll("posts");
   state.users = await getAll("users");
-  state.customFolders = await getSetting("customFolders", []);
+  state.tags = await getSetting("tags", []);
   render();
   await refreshCaptureStatus();
   if (!globalThis.chrome?.runtime) {

@@ -1,5 +1,5 @@
 const DB_NAME = "xshelf";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 export const STORES = ["posts", "users", "settings"];
 
 function requestResult(request) {
@@ -22,12 +22,20 @@ export function openDatabase() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      const posts = db.createObjectStore("posts", { keyPath: "id" });
-      posts.createIndex("createdAt", "createdAt");
-      posts.createIndex("folder", "folder");
-      posts.createIndex("authorHandle", "authorHandle");
-      db.createObjectStore("users", { keyPath: "id" });
-      db.createObjectStore("settings", { keyPath: "key" });
+      const transaction = request.transaction;
+      let posts;
+      if (!db.objectStoreNames.contains("posts")) {
+        posts = db.createObjectStore("posts", { keyPath: "id" });
+        posts.createIndex("createdAt", "createdAt");
+        posts.createIndex("authorHandle", "authorHandle");
+      } else posts = transaction.objectStore("posts");
+      if (posts.indexNames.contains("folder")) posts.deleteIndex("folder");
+      if (!posts.indexNames.contains("tags")) posts.createIndex("tags", "tags", { multiEntry: true });
+      let users;
+      if (!db.objectStoreNames.contains("users")) users = db.createObjectStore("users", { keyPath: "id" });
+      else users = transaction.objectStore("users");
+      if (!users.indexNames.contains("tags")) users.createIndex("tags", "tags", { multiEntry: true });
+      if (!db.objectStoreNames.contains("settings")) db.createObjectStore("settings", { keyPath: "key" });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);

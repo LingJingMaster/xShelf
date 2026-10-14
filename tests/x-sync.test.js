@@ -21,6 +21,7 @@ test("normalizes bookmark tweets and bottom cursor", () => {
   assert.equal(result.cursor, "next-page");
   assert.equal(result.posts[0].id, "bookmark_42");
   assert.equal(result.posts[0].authorHandle, "@ada");
+  assert.deepEqual(result.posts[0].tags, []);
 });
 
 test("keeps likes separate from copies of the same bookmarked tweet", () => {
@@ -100,6 +101,7 @@ test("normalizes relationship timelines into users", () => {
   assert.equal(result.store, "users");
   assert.equal(result.rows[0].id, "following_7");
   assert.equal(result.rows[0].followersCount, 120);
+  assert.deepEqual(result.rows[0].tags, []);
 });
 
 test("normalizes current user identity fields without legacy names", () => {

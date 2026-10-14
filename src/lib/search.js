@@ -26,7 +26,7 @@ export function createSearchPredicate(input = "") {
 }
 
 export function searchableText(row) {
-  return [row.text, row.description, row.articleTitle, row.articlePreview, row.authorName, row.authorHandle].filter(Boolean).join(" ");
+  return [row.text, row.description, row.articleTitle, row.articlePreview, row.authorName, row.authorHandle, ...(row.tags || [])].filter(Boolean).join(" ");
 }
 
 export function filterPosts(posts, filters = {}) {
@@ -34,7 +34,8 @@ export function filterPosts(posts, filters = {}) {
   const authors = new Set(filters.authors || []);
   return posts.filter(post => {
     if (!matches(searchableText(post))) return false;
-    if (filters.folder && filters.folder !== "all" && post.folder !== filters.folder) return false;
+    if (filters.tag === "untagged" && (post.tags?.length || 0) > 0) return false;
+    if (filters.tag && !["all", "untagged"].includes(filters.tag) && !post.tags?.includes(filters.tag)) return false;
     if (authors.size && !authors.has(post.authorHandle)) return false;
     if (filters.contentType && filters.contentType !== "all" && !post.contentTypes?.includes(filters.contentType)) return false;
     if (filters.postType && filters.postType !== "all" && post.postType !== filters.postType) return false;

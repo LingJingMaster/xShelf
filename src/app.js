@@ -750,27 +750,23 @@ function handleRuntimeMessage(message) {
   }
 }
 
-function systemDark() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
 function applyTheme() {
-  const stored = localStorage.getItem("xshelf-theme") || "system";
-  const dark = stored === "dark" || (stored === "system" && systemDark());
-  document.documentElement.dataset.theme = dark ? "dark" : "light";
-  document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  const stored = localStorage.getItem("xshelf-theme");
+  const theme = stored === "dark" ? "dark" : "light";
+  if (stored && stored !== "light" && stored !== "dark") localStorage.setItem("xshelf-theme", "light");
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
   const button = $("#themeButton");
   if (!button) return;
-  button.textContent = stored === "system" ? "深色模式：跟随浏览器" : dark ? "深色模式：开" : "深色模式：关";
+  const dark = theme === "dark";
+  button.textContent = dark ? "深色模式：开" : "深色模式：关";
   button.setAttribute("aria-pressed", String(dark));
 }
 
 function bindTheme() {
   applyTheme();
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
   $("#themeButton").onclick = () => {
-    const stored = localStorage.getItem("xshelf-theme") || "system";
-    const next = stored === "system" ? (systemDark() ? "light" : "dark") : stored === "dark" ? "light" : "system";
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     localStorage.setItem("xshelf-theme", next);
     applyTheme();
   };

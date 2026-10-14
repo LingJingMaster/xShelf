@@ -387,6 +387,7 @@ function makeCard(row) {
   textLink.style.textDecoration = "none";
 
   const select = element("select", { className: "folder-select", "aria-label": "移动到文件夹" });
+  const folderPicker = element("div", { className: "folder-picker" }, [select]);
   for (const folder of folders()) {
     const option = element("option", { value: folder, text: folderName(folder) });
     option.selected = (row.folder || "unsorted") === folder;
@@ -401,10 +402,10 @@ function makeCard(row) {
   const foot = element("div", { className: "card-foot" }, [
     element("span", { text: formatDate(row.createdAt) }),
     element("span", { text: detail }),
-    select
+    folderPicker
   ]);
   if (state.view === "compact") {
-    const folderCell = element("div", { className: "compact-folder" }, [select, element("small", { text: formatDate(row.createdAt) })]);
+    const folderCell = element("div", { className: "compact-folder" }, [folderPicker, element("small", { text: formatDate(row.createdAt) })]);
     return element("article", { className: "bookmark-card" + (state.selectedIds.has(row.id) ? " selected" : "") }, [checkbox, author, folderCell, textLink, isUser ? element("div", { className: "compact-media media-empty", text: "—" }) : mediaCell(row, true)]);
   }
   const children = [author];

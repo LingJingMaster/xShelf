@@ -1,4 +1,4 @@
-import { clearAll, dumpDatabase, getAll, putMany, remove, restoreDatabase } from "./lib/db.js";
+import { clearAll, dumpDatabase, getAll, getSetting, putMany, remove, restoreDatabase, setSetting } from "./lib/db.js";
 import { filterPosts } from "./lib/search.js";
 import { rowsToMarkdown } from "./lib/export.js";
 import { isAllowedPreviewUrl } from "./lib/link-preview.js";
@@ -20,6 +20,7 @@ const state = {
   category: "bookmark",
   folder: "all",
   view: "compact",
+  customFolders: [],
   filters: { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false },
   captureWaitId: 0,
   reconnects: {},
@@ -101,9 +102,45 @@ function currentRows() {
 }
 
 function folders() {
-  const values = new Set(categoryRows().map(row => row.folder || "unsorted"));
+  const values = new Set(state.customFolders);
+  categoryRows().forEach(row => values.add(row.folder || "unsorted"));
   values.add("unsorted");
   return [...values].sort((a, b) => a === "unsorted" ? -1 : b === "unsorted" ? 1 : a.localeCompare(b, "zh-CN"));
+}
+
+function openFolderDialog() {
+  const form = $("#folderForm");
+  form.reset();
+  $("#folderError").textContent = "";
+  $("#folderDialog").showModal();
+  requestAnimationFrame(() => form.elements.name.focus());
+}
+
+async function createFolder(name) {
+  const normalized = name.trim().replace(/\s+/g, " ");
+  const error = $("#folderError");
+  if (!normalized) {
+    error.textContent = "请输入文件夹名称。";
+    return false;
+  }
+  if (normalized.length > 40) {
+    error.textContent = "名称最多 40 个字符。";
+    return false;
+  }
+  if (["all", "unsorted", "全部", "未分类"].includes(normalized.toLowerCase())) {
+    error.textContent = "这个名称由 xShelf 保留，请换一个。";
+    return false;
+  }
+  if (folders().some(folder => folder.toLocaleLowerCase("zh-CN") === normalized.toLocaleLowerCase("zh-CN"))) {
+    error.textContent = "这个文件夹已经存在。";
+    return false;
+  }
+  state.customFolders.push(normalized);
+  await setSetting("customFolders", state.customFolders);
+  state.folder = normalized;
+  render();
+  showToast("文件夹已创建，可从卡片菜单移动内容。");
+  return true;
 }
 
 function renderFolders() {
@@ -592,6 +629,7 @@ async function importFile(file, backupMode = false) {
     }
     state.posts = await getAll("posts");
     state.users = await getAll("users");
+    state.customFolders = await getSetting("customFolders", []);
     render();
     if (backupMode) $("#backupDialog").close();
   } catch (error) {
@@ -668,6 +706,7 @@ async function bindClearData() {
     await clearAll();
     state.posts = [];
     state.users = [];
+    state.customFolders = [];
     state.category = "bookmark";
     state.folder = "all";
     $("#clearDialog").close();
@@ -718,13 +757,16 @@ function bindEvents() {
   $("#restoreInput").onchange = event => event.target.files[0] && importFile(event.target.files[0], true);
   $("#importButton").onclick = () => $("#importInput").click();
   $("#importInput").onchange = event => event.target.files[0] && importFile(event.target.files[0]);
-  $("#newFolder").onclick = async () => {
-    const name = prompt("新文件夹名称");
-    if (!name?.trim()) return;
-    state.folder = name.trim();
-    render();
-    showToast("文件夹已创建。把卡片移动进来后会永久保存。");
-  };
+  $("#newFolder").onclick = openFolderDialog;
+  $("#folderForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (event.submitter?.value === "cancel") {
+      $("#folderDialog").close();
+      return;
+    }
+    const created = await createFolder(event.currentTarget.elements.name.value);
+    if (created) $("#folderDialog").close();
+  });
 }
 
 async function start() {
@@ -733,6 +775,7 @@ async function start() {
   bindEvents();
   state.posts = await getAll("posts");
   state.users = await getAll("users");
+  state.customFolders = await getSetting("customFolders", []);
   render();
   await refreshCaptureStatus();
   if (!globalThis.chrome?.runtime) {

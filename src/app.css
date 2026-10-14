@@ -83,7 +83,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .danger-text { color: var(--danger); }
 .danger-copy { margin: 0 0 12px; padding: 12px 14px; color: var(--danger); background: var(--danger-bg); border: 1px solid var(--danger); border-radius: 8px; font-weight: 650; line-height: 1.55; }
 .danger-button { min-height: 36px; padding: 0 14px; color: #fff; background: #a11d1d; border: 0; border-radius: 8px; }
-html[data-theme="dark"] .form-grid input:not([type="checkbox"]), html[data-theme="dark"] .form-grid select { background: var(--paper-2); }
+html[data-theme="dark"] .form-grid input:not([type="checkbox"]), html[data-theme="dark"] .form-grid select, html[data-theme="dark"] .field-stack input { background: var(--paper-2); }
 .main { min-width: 0; padding: 18px clamp(18px, 3vw, 42px) 56px; }
 .topbar { display: flex; gap: 8px; align-items: center; }
 .content-tabs { display: flex; align-items: center; gap: 3px; padding: 3px; background: var(--chip); border: 1px solid var(--line); border-radius: 10px; }
@@ -159,7 +159,11 @@ dialog::backdrop { background: rgba(23,32,27,.42); backdrop-filter: blur(2px); }
 .dialog-head { display: flex; align-items: start; justify-content: space-between; margin-bottom: 20px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-grid label { color: var(--muted); font-size: 12px; }
-.form-grid input:not([type="checkbox"]), .form-grid select { width: 100%; min-height: 39px; margin-top: 5px; padding: 7px 9px; background: white; border: 1px solid var(--line); border-radius: 7px; }
+.form-grid input:not([type="checkbox"]), .form-grid select, .field-stack input { width: 100%; min-height: 39px; margin-top: 5px; padding: 7px 9px; color: var(--ink); background: white; border: 1px solid var(--line); border-radius: 7px; }
+.field-stack { display: grid; color: var(--muted); font-size: 12px; }
+.field-stack small { margin-top: 7px; color: var(--faint); }
+.field-error { min-height: 18px; margin-top: 4px; color: var(--danger); font-weight: 600; }
+.field-stack input:focus { border-color: var(--green); }
 .check-row { grid-column: 1 / -1; }
 .dialog-actions, .split-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
 .choice-list { display: grid; gap: 8px; }

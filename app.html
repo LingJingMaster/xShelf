@@ -65,6 +65,19 @@
     </main>
   </div>
 
+  <dialog id="folderDialog">
+    <form class="dialog-card" id="folderForm">
+      <div class="dialog-head"><div><p>整理本地资料</p><h2>新建文件夹</h2></div><button class="icon-button" type="submit" value="cancel" aria-label="关闭">×</button></div>
+      <label class="field-stack" for="folderName">
+        <span>文件夹名称</span>
+        <input id="folderName" name="name" type="text" maxlength="40" autocomplete="off" placeholder="例如：待读、工具、灵感">
+        <small>创建后可在卡片的分类菜单中选择。</small>
+        <strong class="field-error" id="folderError" role="alert"></strong>
+      </label>
+      <div class="dialog-actions"><button class="quiet-button" type="submit" value="cancel">取消</button><button class="ink-button" type="submit" value="create">创建文件夹</button></div>
+    </form>
+  </dialog>
+
   <dialog id="filterDialog">
     <form method="dialog" class="dialog-card" id="filterForm">
       <div class="dialog-head"><div><p>缩小范围</p><h2>筛选内容</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>

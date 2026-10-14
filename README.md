@@ -32,7 +32,20 @@ xShelf 是一款本地优先的 Chrome 扩展，用于同步、搜索、整理�
 
 X 使用未公开且没有正式文档的内部 API。X 修改请求结构后，同步功能可能失效。建议定期导出或备份重要资料。
 
+### 安装使用
+
+1. 打开 [最新 Release](https://github.com/LingJingMaster/xShelf/releases/latest)，下载 `xshelf.zip`。
+2. 解压。解压后的 `xshelf` 文件夹里应直接看到 `manifest.json`。
+3. 打开 `chrome://extensions`，启用“开发者模式”。
+4. 点击“加载已解压的扩展程序”，选择解压出来的 `xshelf` 文件夹。不要直接选择 zip 文件。
+5. 点击浏览器工具栏中的 xShelf 图标。
+6. 先在浏览器中登录 [X](https://x.com)。回到 xShelf，选择分类并点击连接。xShelf 会打开对应的 X 页面，识别列表请求后自动返回并开始同步。
+
+安装包只包含扩展运行文件，不含源码测试、文档或开发依赖。
+
 ### 开发安装
+
+从源码运行时：
 
 1. 运行 `npm install`。
 2. 打开 `chrome://extensions`，启用“开发者模式”。
@@ -58,7 +71,7 @@ npm test
 npm run package
 ```
 
-`npm test` 运行解析、搜索、标签和导出测试。`npm run package` 生成 `dist/xshelf.zip`。
+`npm test` 运行解析、搜索、标签和导出测试。`npm run package` 用当前提交生成 `dist/xshelf.zip`，内容与公开发布的安装包相同。
 
 ### 同步原理
 
@@ -113,7 +126,20 @@ All data stays in IndexedDB inside the extension. xShelf has no user accounts, a
 
 X uses private, undocumented APIs. Sync may break when X changes its request shape. Export or back up important data regularly.
 
+### Installation
+
+1. Open the [latest release](https://github.com/LingJingMaster/xShelf/releases/latest) and download `xshelf.zip`.
+2. Unzip it. The resulting `xshelf` folder should contain `manifest.json` directly.
+3. Open `chrome://extensions` and enable Developer mode.
+4. Choose **Load unpacked** and select the unzipped `xshelf` folder. Do not select the zip file itself.
+5. Open xShelf from the browser toolbar.
+6. Sign in to [X](https://x.com), return to xShelf, choose a category, and click connect. xShelf opens the matching X page, detects the list request, then returns and starts syncing.
+
+The package contains only the extension runtime. It does not include tests, documentation, or development dependencies.
+
 ### Development installation
+
+To run from source:
 
 1. Run `npm install`.
 2. Open `chrome://extensions` and enable Developer mode.
@@ -139,7 +165,7 @@ npm test
 npm run package
 ```
 
-`npm test` runs parser, search, tag, and export tests. `npm run package` creates `dist/xshelf.zip`.
+`npm test` runs parser, search, tag, and export tests. `npm run package` creates `dist/xshelf.zip` from the current commit, with the same contents as the public release package.
 
 ### How sync works
 

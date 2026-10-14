@@ -8,7 +8,7 @@
   "scripts": {
     "test": "node --test",
     "check": "node --check src/background.js && node --check src/app.js && node --check src/lib/db.js && node --check src/lib/search.js && node --check src/lib/link-preview.js && node --check src/lib/profile-url.js && node --check src/lib/export.js && node --check src/lib/x-capture.js && node --check src/x-profile.js && node --check src/lib/x-sync.js",
-    "package": "npm run check && npm test && mkdir -p dist && zip -qr dist/xshelf.zip manifest.json rules.json app.html src icons README.md PRIVACY.md -x '*.DS_Store'"
+    "package": "npm run check && npm test && mkdir -p dist && git archive --format=zip --prefix=xshelf/ -o dist/xshelf.zip HEAD manifest.json rules.json app.html src icons"
   },
   "dependencies": {
     "fflate": "0.8.2"

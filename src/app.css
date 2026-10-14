@@ -173,6 +173,9 @@ dialog::backdrop { background: rgba(23,32,27,.42); backdrop-filter: blur(2px); }
 .field-stack small { margin-top: 7px; color: var(--faint); }
 .field-error { min-height: 18px; margin-top: 4px; color: var(--danger); font-weight: 600; }
 .field-stack input:focus { border-color: var(--green); }
+#batchFolderDialog .field-stack { font-size: 14px; }
+#batchFolderDialog .field-stack select { font-size: 15px; }
+#batchFolderDialog .field-stack small { font-size: 13px; line-height: 1.5; }
 .check-row { grid-column: 1 / -1; }
 .dialog-actions, .split-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
 .choice-list { display: grid; gap: 8px; }

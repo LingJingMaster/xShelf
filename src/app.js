@@ -276,6 +276,16 @@ function mediaCell(row, compact = false) {
   return element("div", { className: className + " media-empty", text: "—" });
 }
 
+function openBatchFolderDialog() {
+  if (!state.selectedIds.size) return;
+  const select = $("#batchFolderSelect");
+  select.replaceChildren(element("option", { value: "", text: "请选择文件夹", disabled: "", selected: "" }));
+  folders().forEach(folder => select.append(element("option", { value: folder, text: folderName(folder) })));
+  $("#batchFolderCopy").textContent = "将移动已选择的 " + state.selectedIds.size + " 条内容。";
+  $("#confirmBatchFolder").disabled = true;
+  $("#batchFolderDialog").showModal();
+}
+
 function openDeleteDialog() {
   if (!state.selectedIds.size) return;
   $("#deleteSelectedCopy").textContent = "将从 xShelf 本地永久删除已选择的 " + state.selectedIds.size + " 条内容。X 上的原始内容不会变化。";
@@ -286,8 +296,11 @@ function updateSelectionUi(rows = currentRows()) {
   const visibleIds = rows.map(row => row.id);
   const selectedVisible = visibleIds.filter(id => state.selectedIds.has(id)).length;
   const button = $("#deleteSelected");
+  const batchFolderButton = $("#batchFolderButton");
   button.disabled = state.selectedIds.size === 0;
+  batchFolderButton.disabled = state.selectedIds.size === 0;
   button.textContent = state.selectedIds.size ? "删除 " + state.selectedIds.size : "删除";
+  batchFolderButton.textContent = state.selectedIds.size ? "批量分类 " + state.selectedIds.size : "批量分类";
   const master = $("#selectAll");
   if (master) {
     master.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
@@ -789,6 +802,21 @@ function bindEvents() {
     render();
   });
   $("#filterButton").onclick = () => $("#filterDialog").showModal();
+  $("#batchFolderButton").onclick = openBatchFolderDialog;
+  $("#batchFolderSelect").onchange = event => { $("#confirmBatchFolder").disabled = !event.target.value; };
+  $("#confirmBatchFolder").onclick = async () => {
+    const folder = $("#batchFolderSelect").value;
+    const ids = new Set(state.selectedIds);
+    if (!folder || !ids.size) return;
+    const store = CATEGORIES[state.category].store;
+    const updated = state[store].filter(row => ids.has(row.id)).map(row => ({ ...row, folder }));
+    await putMany(store, updated);
+    state[store] = state[store].map(row => ids.has(row.id) ? { ...row, folder } : row);
+    state.selectedIds.clear();
+    $("#batchFolderDialog").close();
+    render();
+    showToast("已将 " + updated.length + " 条内容移动到“" + folderName(folder) + "”。");
+  };
   $("#deleteSelected").onclick = openDeleteDialog;
   $("#confirmDeleteSelected").onclick = async () => {
     const ids = [...state.selectedIds];

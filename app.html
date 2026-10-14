@@ -58,6 +58,7 @@
           <button data-view="stats" aria-pressed="false" title="统计视图">◒</button>
           </div>
           <button class="quiet-button" id="filterButton">筛选 <span id="filterCount"></span></button>
+          <button class="quiet-button" id="batchFolderButton" type="button" disabled>批量分类</button>
           <button class="ink-button" id="exportButton">导出</button>
           <button class="delete-selected" id="deleteSelected" type="button" disabled>删除</button>
         </div>
@@ -112,6 +113,18 @@
       <div class="dialog-head"><div><p>本地副本</p><h2>备份与恢复</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
       <p class="explain">备份是 ZIP 文件，里面保存明文 JSONL。请把它放在你信任的位置。</p>
       <div class="split-actions"><button class="ink-button" type="button" id="createBackup">下载备份</button><label class="quiet-button file-label">恢复备份<input id="restoreInput" type="file" accept=".zip,application/zip"></label></div>
+    </form>
+  </dialog>
+
+  <dialog id="batchFolderDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><div><p>整理已选内容</p><h2>批量分类</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <label class="field-stack" for="batchFolderSelect">
+        <span>移动到文件夹</span>
+        <select id="batchFolderSelect" required></select>
+        <small id="batchFolderCopy"></small>
+      </label>
+      <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="ink-button" id="confirmBatchFolder" type="button" disabled>确认移动</button></div>
     </form>
   </dialog>
 

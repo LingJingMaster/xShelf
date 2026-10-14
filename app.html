@@ -127,6 +127,11 @@
   <dialog id="editTagsDialog">
     <form method="dialog" class="dialog-card">
       <div class="dialog-head"><div><p>一条内容可拥有多个标签</p><h2>编辑标签</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <div class="tag-composer">
+        <input id="editTagName" type="text" maxlength="24" autocomplete="off" placeholder="输入新标签">
+        <button class="quiet-button" id="createEditTag" type="button">创建</button>
+        <strong class="field-error" id="editTagError" role="alert"></strong>
+      </div>
       <div class="tag-choice-list" id="editTagChoices"></div>
       <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="ink-button" id="saveTags" type="button">保存标签</button></div>
     </form>
@@ -135,6 +140,11 @@
   <dialog id="batchTagsDialog">
     <form method="dialog" class="dialog-card">
       <div class="dialog-head"><div><p id="batchTagCopy">修改已选内容</p><h2>批量标签</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <div class="tag-composer">
+        <input id="batchTagName" type="text" maxlength="24" autocomplete="off" placeholder="输入新标签">
+        <button class="quiet-button" id="createBatchTag" type="button">创建</button>
+        <strong class="field-error" id="batchTagError" role="alert"></strong>
+      </div>
       <div class="tag-choice-list" id="batchTagChoices"></div>
       <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="quiet-button" id="removeBatchTags" type="button" disabled>移除标签</button><button class="ink-button" id="addBatchTags" type="button" disabled>添加标签</button></div>
     </form>

@@ -114,30 +114,21 @@ function openTagCreateDialog() {
   requestAnimationFrame(() => form.elements.name.focus());
 }
 
-async function createTag(name) {
+async function createTag(name, errorNode = $("#tagCreateError")) {
   const normalized = name.trim().replace(/\s+/g, " ");
-  const error = $("#tagCreateError");
-  if (!normalized) {
-    error.textContent = "请输入标签名称。";
+  const reject = message => {
+    if (errorNode) errorNode.textContent = message;
     return false;
-  }
-  if (normalized.length > 24) {
-    error.textContent = "名称最多 24 个字符。";
-    return false;
-  }
-  if (["all", "untagged", "全部", "无标签"].includes(normalized.toLowerCase())) {
-    error.textContent = "这个名称由 xShelf 保留，请换一个。";
-    return false;
-  }
-  if (tagNames().some(tag => tag.toLocaleLowerCase("zh-CN") === normalized.toLocaleLowerCase("zh-CN"))) {
-    error.textContent = "这个标签已经存在。";
-    return false;
-  }
+  };
+  if (!normalized) return reject("请输入标签名称。");
+  if (normalized.length > 24) return reject("名称最多 24 个字符。");
+  if (["all", "untagged", "全部", "无标签"].includes(normalized.toLowerCase())) return reject("这个名称由 xShelf 保留，请换一个。");
+  if (tagNames().some(tag => tag.toLocaleLowerCase("zh-CN") === normalized.toLocaleLowerCase("zh-CN"))) return reject("这个标签已经存在。");
+  if (errorNode) errorNode.textContent = "";
   state.tags.push(normalized);
   await setSetting("tags", state.tags);
   render();
-  showToast("标签已创建。现在可以添加到内容。");
-  return true;
+  return normalized;
 }
 
 async function updateTagEverywhere(oldTag, nextTag = null) {
@@ -339,7 +330,7 @@ function renderTagChoices(container, selected = []) {
   container.replaceChildren();
   const names = tagNames();
   if (!names.length) {
-    container.append(element("p", { className: "tag-choice-empty", text: "还没有标签。先在侧栏新建一个标签。" }));
+    container.append(element("p", { className: "tag-choice-empty", text: "还没有标签。在上方输入名称即可创建。" }));
     return;
   }
   names.forEach(tag => {
@@ -353,14 +344,31 @@ function checkedTags(container) {
   return [...container.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
 }
 
+async function createTagInChoices(input, error, container) {
+  const selected = checkedTags(container);
+  const created = await createTag(input.value, error);
+  if (!created) return;
+  input.value = "";
+  renderTagChoices(container, [...selected, created]);
+  if (container.id === "batchTagChoices") {
+    $("#addBatchTags").disabled = false;
+    $("#removeBatchTags").disabled = false;
+  }
+}
+
 function openEditTagsDialog(row) {
   editingTagRow = row;
+  $("#editTagName").value = "";
+  $("#editTagError").textContent = "";
   renderTagChoices($("#editTagChoices"), rowTags(row));
   $("#editTagsDialog").showModal();
+  requestAnimationFrame(() => $("#editTagName").focus());
 }
 
 function openBatchTagsDialog() {
   if (!state.selectedIds.size) return;
+  $("#batchTagName").value = "";
+  $("#batchTagError").textContent = "";
   renderTagChoices($("#batchTagChoices"));
   $("#batchTagCopy").textContent = "将修改已选择的 " + state.selectedIds.size + " 条内容。";
   $("#addBatchTags").disabled = true;
@@ -899,6 +907,17 @@ function bindEvents() {
     render();
   });
   $("#filterButton").onclick = () => $("#filterDialog").showModal();
+  const bindInlineTagCreate = (inputId, buttonId, errorId, containerId) => {
+    const create = () => createTagInChoices($(inputId), $(errorId), $(containerId));
+    $(buttonId).onclick = create;
+    $(inputId).addEventListener("keydown", event => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      create();
+    });
+  };
+  bindInlineTagCreate("#editTagName", "#createEditTag", "#editTagError", "#editTagChoices");
+  bindInlineTagCreate("#batchTagName", "#createBatchTag", "#batchTagError", "#batchTagChoices");
   $("#batchTagButton").onclick = openBatchTagsDialog;
   $("#batchTagChoices").addEventListener("change", () => {
     const hasTags = checkedTags($("#batchTagChoices")).length > 0;
@@ -970,7 +989,10 @@ function bindEvents() {
       return;
     }
     const created = await createTag(event.currentTarget.elements.name.value);
-    if (created) $("#tagCreateDialog").close();
+    if (created) {
+      $("#tagCreateDialog").close();
+      showToast("标签已创建。现在可以添加到内容。");
+    }
   });
 }
 

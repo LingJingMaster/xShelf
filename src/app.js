@@ -1,6 +1,6 @@
 import { clearAll, dumpDatabase, getAll, getSetting, putMany, remove, restoreDatabase, setSetting } from "./lib/db.js";
 import { filterPosts } from "./lib/search.js";
-import { rowsToMarkdown } from "./lib/export.js";
+import { rowsForExport, rowsToMarkdown } from "./lib/export.js";
 import { isAllowedPreviewUrl } from "./lib/link-preview.js";
 import { parseTimelineResponse } from "./lib/x-sync.js";
 
@@ -334,10 +334,12 @@ function updateSelectionUi(rows = currentRows()) {
   const selectedVisible = visibleIds.filter(id => state.selectedIds.has(id)).length;
   const button = $("#deleteSelected");
   const batchFolderButton = $("#batchFolderButton");
+  const exportButton = $("#exportButton");
   button.disabled = state.selectedIds.size === 0;
   batchFolderButton.disabled = state.selectedIds.size === 0;
   button.textContent = state.selectedIds.size ? "删除 " + state.selectedIds.size : "删除";
   batchFolderButton.textContent = state.selectedIds.size ? "批量分类 " + state.selectedIds.size : "批量分类";
+  exportButton.textContent = state.selectedIds.size ? "导出 " + state.selectedIds.size : "导出";
   const master = $("#selectAll");
   if (master) {
     master.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
@@ -616,7 +618,7 @@ function downloadBlob(blob, filename) {
 }
 
 function exportRows(format) {
-  const rows = currentRows();
+  const rows = rowsForExport(currentRows(), categoryRows(), state.selectedIds);
   const stamp = new Date().toISOString().slice(0, 10);
   if (format === "json") {
     downloadBlob(new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }), "xshelf-" + stamp + ".json");
@@ -901,7 +903,12 @@ function bindEvents() {
     render();
   });
   $("#clearFilters").onclick = () => { $("#filterForm").reset(); state.filters = { ...state.filters, contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false }; render(); };
-  $("#exportButton").onclick = () => $("#exportDialog").showModal();
+  $("#exportButton").onclick = () => {
+    const count = state.selectedIds.size;
+    $("#exportScope").textContent = count ? "仅导出已选内容" : "带走你的资料";
+    $("#exportTitle").textContent = count ? "导出已选 " + count + " 条" : "导出当前范围";
+    $("#exportDialog").showModal();
+  };
   document.querySelectorAll("[data-export]").forEach(button => button.onclick = () => exportRows(button.dataset.export));
   $("#backupButton").onclick = () => $("#backupDialog").showModal();
   $("#createBackup").onclick = createBackup;

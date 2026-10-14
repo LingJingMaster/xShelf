@@ -1,6 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { rowsToMarkdown } from "../src/lib/export.js";
+import { rowsForExport, rowsToMarkdown } from "../src/lib/export.js";
+
+const exportRows = [
+  { id: "1", text: "Selected" },
+  { id: "2", text: "Also selected" },
+  { id: "3", text: "Not selected" }
+];
+
+test("exports only selected rows when a selection exists", () => {
+  assert.deepEqual(rowsForExport(exportRows, exportRows, new Set(["1", "2"])).map(row => row.id), ["1", "2"]);
+});
+
+test("exports the current scope when nothing is selected", () => {
+  assert.deepEqual(rowsForExport(exportRows.slice(1), exportRows, new Set()).map(row => row.id), ["2", "3"]);
+});
 
 test("exports posts and media as readable Markdown", () => {
   const markdown = rowsToMarkdown([{

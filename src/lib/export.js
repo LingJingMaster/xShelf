@@ -10,6 +10,11 @@ function url(value) {
   return String(value || "").replaceAll(" ", "%20").replaceAll(">", "%3E");
 }
 
+export function rowsForExport(scopedRows, categoryRows, selectedIds) {
+  const selected = new Set(selectedIds || []);
+  return selected.size ? categoryRows.filter(row => selected.has(row.id)) : scopedRows;
+}
+
 export function rowsToMarkdown(rows, options = {}) {
   const title = options.title || "xShelf";
   const exportedAt = options.exportedAt || new Date().toISOString();

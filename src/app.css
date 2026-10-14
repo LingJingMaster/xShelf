@@ -99,6 +99,8 @@ kbd { padding: 1px 6px; color: var(--faint); background: var(--paper-2); border:
 .quiet-button { color: var(--ink); background: var(--paper); border: 1px solid var(--line); }
 .ink-button { color: var(--paper); background: var(--ink); border: 1px solid var(--ink); }
 .shelf-head { display: flex; align-items: center; justify-content: flex-start; margin: 24px 1px 15px; }
+.shelf-tools { display: flex; align-items: center; gap: 8px; }
+.shelf-head .quiet-button, .shelf-head .ink-button, .delete-selected { min-height: 36px; }
 .shelf-head p, .dialog-head p { margin: 0 0 2px; color: var(--muted); font-size: 12px; }
 h1, h2 { margin: 0; font-family: var(--serif); font-weight: 500; letter-spacing: -0.035em; }
 h1 { font-size: clamp(28px, 4vw, 38px); }
@@ -106,6 +108,10 @@ h2 { font-size: 28px; }
 .view-switch { display: flex; padding: 3px; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; }
 .view-switch button { width: 32px; height: 29px; color: var(--ink); background: none; border: 0; border-radius: 5px; }
 .view-switch button[aria-pressed="true"] { color: var(--paper); background: var(--ink); }
+.delete-selected { padding: 0 13px; color: var(--danger); background: var(--danger-bg); border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent); border-radius: 9px; white-space: nowrap; }
+.delete-selected:disabled { color: var(--faint); background: transparent; border-color: var(--line); cursor: default; opacity: .65; }
+.row-select { flex: 0 0 auto; width: 17px; height: 17px; margin: 0; accent-color: var(--green); cursor: pointer; }
+.bookmark-card.selected { border-color: var(--green); box-shadow: inset 3px 0 var(--green); }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
 .bookmark-card { min-width: 0; min-height: 214px; display: flex; flex-direction: column; padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 1px 0 var(--surface-shadow); }
 .author { display: flex; align-items: center; gap: 9px; min-width: 0; }
@@ -129,8 +135,8 @@ h2 { font-size: 28px; }
 .card-foot { display: flex; align-items: center; gap: 7px; margin-top: auto; color: var(--faint); font-size: 11px; }
 .folder-select { max-width: 120px; margin-left: auto; padding: 3px 7px; color: var(--muted); background: var(--paper-2); border: 0; border-radius: 99px; font-size: 11px; }
 .card-grid.compact { display: flex; flex-direction: column; }
-.compact-header { display: grid; grid-template-columns: 170px 115px minmax(0, 1fr) 110px; gap: 16px; padding: 7px 15px; color: var(--faint); font-size: 11px; border-bottom: 1px solid var(--line); }
-.compact .bookmark-card { min-height: 0; display: grid; grid-template-columns: 170px 115px minmax(0, 1fr) 110px; align-items: center; gap: 16px; padding: 10px 15px; }
+.compact-header { display: grid; grid-template-columns: 24px 170px 115px minmax(0, 1fr) 110px; gap: 16px; align-items: center; padding: 7px 15px; color: var(--faint); font-size: 11px; border-bottom: 1px solid var(--line); }
+.compact .bookmark-card { min-height: 0; display: grid; grid-template-columns: 24px 170px 115px minmax(0, 1fr) 110px; align-items: center; gap: 16px; padding: 10px 15px; }
 .compact .bookmark-text { margin: 0; font-size: 15px; }
 .compact-folder { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
 .compact-folder .folder-select { max-width: 110px; margin-left: 0; }
@@ -193,6 +199,7 @@ dialog::backdrop { background: rgba(23,32,27,.42); backdrop-filter: blur(2px); }
   .content-tabs { order: 2; width: 100%; overflow-x: auto; }
   .search-field { order: 3; flex-basis: 100%; }
   .shelf-head { margin-top: 24px; }
+  .shelf-tools { flex-wrap: wrap; }
   .card-grid { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .check-row { grid-column: auto; }

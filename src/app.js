@@ -21,6 +21,7 @@ const state = {
   folder: "all",
   view: "compact",
   customFolders: [],
+  selectedIds: new Set(),
   filters: { query: "", contentType: "all", postType: "all", startDate: "", endDate: "", oldest: false },
   captureWaitId: 0,
   reconnects: {},
@@ -162,6 +163,7 @@ function renderFolders() {
 
 function selectFolder(folder) {
   state.folder = folder;
+  state.selectedIds.clear();
   $("#app").classList.remove("nav-open");
   render();
 }
@@ -274,6 +276,41 @@ function mediaCell(row, compact = false) {
   return element("div", { className: className + " media-empty", text: "—" });
 }
 
+function openDeleteDialog() {
+  if (!state.selectedIds.size) return;
+  $("#deleteSelectedCopy").textContent = "将从 xShelf 本地永久删除已选择的 " + state.selectedIds.size + " 条内容。X 上的原始内容不会变化。";
+  $("#deleteDialog").showModal();
+}
+
+function updateSelectionUi(rows = currentRows()) {
+  const visibleIds = rows.map(row => row.id);
+  const selectedVisible = visibleIds.filter(id => state.selectedIds.has(id)).length;
+  const button = $("#deleteSelected");
+  button.disabled = state.selectedIds.size === 0;
+  button.textContent = state.selectedIds.size ? "删除 " + state.selectedIds.size : "删除";
+  const master = $("#selectAll");
+  if (master) {
+    master.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
+    master.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;
+  }
+}
+
+function selectionCheckbox(row) {
+  const input = element("input", {
+    className: "row-select",
+    type: "checkbox",
+    "aria-label": "选择这条内容"
+  });
+  input.checked = state.selectedIds.has(row.id);
+  input.addEventListener("change", () => {
+    if (input.checked) state.selectedIds.add(row.id);
+    else state.selectedIds.delete(row.id);
+    input.closest(".bookmark-card")?.classList.toggle("selected", input.checked);
+    updateSelectionUi();
+  });
+  return input;
+}
+
 function makeCard(row) {
   const isUser = USER_CATEGORIES.has(state.category);
   const authorCopy = element("div", { className: "author-copy" }, [
@@ -285,15 +322,15 @@ function makeCard(row) {
     title: "仅从本地删除",
     "aria-label": "仅从本地删除",
     text: "×",
-    onclick: async () => {
-      if (!confirm("只从 xShelf 本地删除这条记录？X 上的内容不会变化。")) return;
-      const store = CATEGORIES[state.category].store;
-      await remove(store, row.id);
-      state[store] = state[store].filter(item => item.id !== row.id);
-      render();
+    onclick: () => {
+      state.selectedIds.clear();
+      state.selectedIds.add(row.id);
+      updateSelectionUi();
+      openDeleteDialog();
     }
   });
-  const author = element("div", { className: "author" }, [makeAvatar(row), authorCopy, deleteButton]);
+  const checkbox = selectionCheckbox(row);
+  const author = element("div", { className: "author" }, [state.view === "compact" ? null : checkbox, makeAvatar(row), authorCopy, deleteButton].filter(Boolean));
   const textLink = element("a", { className: "bookmark-text", href: row.url || "#", target: "_blank", rel: "noreferrer" });
   textLink.textContent = isUser ? (row.description || "（没有个人简介）") : (row.text || row.articleTitle || "（没有可显示的正文）");
   textLink.style.color = "inherit";
@@ -318,13 +355,13 @@ function makeCard(row) {
   ]);
   if (state.view === "compact") {
     const folderCell = element("div", { className: "compact-folder" }, [select, element("small", { text: formatDate(row.createdAt) })]);
-    return element("article", { className: "bookmark-card" }, [author, folderCell, textLink, isUser ? element("div", { className: "compact-media media-empty", text: "—" }) : mediaCell(row, true)]);
+    return element("article", { className: "bookmark-card" + (state.selectedIds.has(row.id) ? " selected" : "") }, [checkbox, author, folderCell, textLink, isUser ? element("div", { className: "compact-media media-empty", text: "—" }) : mediaCell(row, true)]);
   }
   const children = [author];
   const textOnly = !displayMedia(row);
   if (state.view === "gallery" && !textOnly) children.push(mediaCell(row));
   children.push(textLink, foot);
-  return element("article", { className: state.view === "gallery" && textOnly ? "bookmark-card text-only" : "bookmark-card" }, children);
+  return element("article", { className: (state.view === "gallery" && textOnly ? "bookmark-card text-only" : "bookmark-card") + (state.selectedIds.has(row.id) ? " selected" : "") }, children);
 }
 
 function renderStats(rows) {
@@ -380,7 +417,13 @@ function render() {
   else if (state.view === "stats") renderStats(rows);
   else {
     if (state.view === "compact") {
+      const selectAll = element("input", { id: "selectAll", className: "row-select", type: "checkbox", "aria-label": "选择当前范围的全部内容" });
+      selectAll.addEventListener("change", () => {
+        rows.forEach(row => selectAll.checked ? state.selectedIds.add(row.id) : state.selectedIds.delete(row.id));
+        render();
+      });
       stage.append(element("div", { className: "compact-header" }, [
+        selectAll,
         element("span", { text: "用户" }),
         element("span", { text: "文件夹" }),
         element("span", { text: USER_CATEGORIES.has(state.category) ? "简介" : "内容" }),
@@ -389,6 +432,7 @@ function render() {
     }
     rows.forEach(row => stage.append(makeCard(row)));
   }
+  updateSelectionUi(rows);
 }
 
 async function refreshCaptureStatus() {
@@ -707,6 +751,7 @@ async function bindClearData() {
     state.posts = [];
     state.users = [];
     state.customFolders = [];
+    state.selectedIds.clear();
     state.category = "bookmark";
     state.folder = "all";
     $("#clearDialog").close();
@@ -726,6 +771,7 @@ function bindEvents() {
     if (!button) return;
     state.category = button.dataset.category;
     state.folder = "all";
+    state.selectedIds.clear();
     $("#app").classList.remove("nav-open");
     render();
     await refreshCaptureStatus();
@@ -743,6 +789,18 @@ function bindEvents() {
     render();
   });
   $("#filterButton").onclick = () => $("#filterDialog").showModal();
+  $("#deleteSelected").onclick = openDeleteDialog;
+  $("#confirmDeleteSelected").onclick = async () => {
+    const ids = [...state.selectedIds];
+    if (!ids.length) return;
+    const store = CATEGORIES[state.category].store;
+    await Promise.all(ids.map(id => remove(store, id)));
+    state[store] = state[store].filter(row => !state.selectedIds.has(row.id));
+    state.selectedIds.clear();
+    $("#deleteDialog").close();
+    render();
+    showToast("已从本地删除 " + ids.length + " 条内容。");
+  };
   $("#filterForm").addEventListener("submit", event => {
     if (event.submitter?.value !== "apply") return;
     const data = new FormData(event.currentTarget);

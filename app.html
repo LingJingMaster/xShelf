@@ -48,15 +48,18 @@
           <input id="searchInput" type="search" autocomplete="off" placeholder="搜索文字、短语，或试试 claude and code">
           <kbd>/</kbd>
         </label>
-        <button class="quiet-button" id="filterButton">筛选 <span id="filterCount"></span></button>
-        <button class="ink-button" id="exportButton">导出</button>
       </header>
 
       <section class="shelf-head">
-        <div class="view-switch" role="group" aria-label="视图">
+        <div class="shelf-tools">
+          <div class="view-switch" role="group" aria-label="视图">
           <button data-view="compact" aria-pressed="true" title="紧凑视图">☷</button>
           <button data-view="gallery" aria-pressed="false" title="媒体画廊">▦</button>
           <button data-view="stats" aria-pressed="false" title="统计视图">◒</button>
+          </div>
+          <button class="quiet-button" id="filterButton">筛选 <span id="filterCount"></span></button>
+          <button class="ink-button" id="exportButton">导出</button>
+          <button class="delete-selected" id="deleteSelected" type="button" disabled>删除</button>
         </div>
       </section>
 
@@ -109,6 +112,14 @@
       <div class="dialog-head"><div><p>本地副本</p><h2>备份与恢复</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
       <p class="explain">备份是 ZIP 文件，里面保存明文 JSONL。请把它放在你信任的位置。</p>
       <div class="split-actions"><button class="ink-button" type="button" id="createBackup">下载备份</button><label class="quiet-button file-label">恢复备份<input id="restoreInput" type="file" accept=".zip,application/zip"></label></div>
+    </form>
+  </dialog>
+
+  <dialog id="deleteDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><div><p>仅删除本地副本</p><h2>删除已选内容</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <p class="danger-copy" id="deleteSelectedCopy"></p>
+      <div class="dialog-actions"><button class="quiet-button" value="cancel">取消</button><button class="danger-button" id="confirmDeleteSelected" type="button">确认删除</button></div>
     </form>
   </dialog>
 

@@ -1,5 +1,6 @@
 import { clearAll, dumpDatabase, getAll, putMany, remove, restoreDatabase } from "./lib/db.js";
 import { filterPosts } from "./lib/search.js";
+import { rowsToMarkdown } from "./lib/export.js";
 import { isAllowedPreviewUrl } from "./lib/link-preview.js";
 import { parseTimelineResponse } from "./lib/x-sync.js";
 
@@ -489,6 +490,10 @@ function exportRows(format) {
   const stamp = new Date().toISOString().slice(0, 10);
   if (format === "json") {
     downloadBlob(new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }), "xshelf-" + stamp + ".json");
+  } else if (format === "markdown") {
+    const title = "xShelf · " + CATEGORIES[state.category].label + (state.folder === "all" ? "" : " · " + folderName(state.folder));
+    const markdown = rowsToMarkdown(rows, { title });
+    downloadBlob(new Blob([markdown], { type: "text/markdown;charset=utf-8" }), "xshelf-" + state.category + "-" + stamp + ".md");
   } else if (format === "csv") {
     const columns = USER_CATEGORIES.has(state.category)
       ? ["userId", "authorName", "authorHandle", "description", "followersCount", "followingCount", "postCount", "createdAt", "folder", "url"]

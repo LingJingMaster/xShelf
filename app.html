@@ -23,7 +23,7 @@
         <button class="nav-item" data-category="following"><span>正在关注</span><small data-count="following">0</small></button>
         <button class="nav-item" data-category="blocked"><span>已屏蔽</span><small data-count="blocked">0</small></button>
       </nav>
-      <div class="tag-head"><span>标签</span><span class="tag-head-actions"><button id="manageTags" type="button">管理</button><button id="newTag" type="button" aria-label="新建标签">＋</button></span></div>
+      <div class="tag-head"><span>标签</span><button id="newTag" type="button" aria-label="管理标签">＋</button></div>
       <nav id="tagList" class="tag-list" aria-label="标签"></nav>
       <div class="sidebar-foot">
         <button class="text-button" id="themeButton" type="button" aria-pressed="false">深色模式</button>
@@ -69,19 +69,6 @@
     </main>
   </div>
 
-  <dialog id="tagCreateDialog">
-    <form class="dialog-card" id="tagCreateForm">
-      <div class="dialog-head"><div><p>整理本地资料</p><h2>新建标签</h2></div><button class="icon-button" type="submit" value="cancel" aria-label="关闭">×</button></div>
-      <label class="field-stack" for="tagName">
-        <span>标签名称</span>
-        <input id="tagName" name="name" type="text" maxlength="24" autocomplete="off" placeholder="例如：待读、工具、灵感">
-        <small>同一条内容可以添加多个标签。</small>
-        <strong class="field-error" id="tagCreateError" role="alert"></strong>
-      </label>
-      <div class="dialog-actions"><button class="quiet-button" type="submit" value="cancel">取消</button><button class="ink-button" type="submit" value="create">创建标签</button></div>
-    </form>
-  </dialog>
-
   <dialog id="filterDialog">
     <form method="dialog" class="dialog-card" id="filterForm">
       <div class="dialog-head"><div><p>缩小范围</p><h2>筛选内容</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
@@ -116,9 +103,14 @@
     </form>
   </dialog>
 
-  <dialog id="manageTagsDialog">
-    <form method="dialog" class="dialog-card">
-      <div class="dialog-head"><div><p>重命名或删除本地标签</p><h2>管理标签</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+  <dialog id="tagLibraryDialog">
+    <form method="dialog" class="dialog-card" id="tagLibraryForm">
+      <div class="dialog-head"><div><p>新建、重命名或删除</p><h2>标签</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <div class="tag-composer">
+        <input id="tagName" type="text" maxlength="24" autocomplete="off" placeholder="例如：待读、工具、灵感">
+        <button class="ink-button" id="createLibraryTag" type="button">创建</button>
+        <strong class="field-error" id="tagCreateError" role="alert"></strong>
+      </div>
       <div class="tag-manager-list" id="tagManagerList"></div>
       <div class="dialog-actions"><button class="ink-button" value="cancel">完成</button></div>
     </form>

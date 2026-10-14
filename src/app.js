@@ -106,12 +106,20 @@ function tagNames() {
   return [...values].sort((a, b) => a.localeCompare(b, "zh-CN"));
 }
 
-function openTagCreateDialog() {
-  const form = $("#tagCreateForm");
-  form.reset();
+function openTagLibrary() {
+  $("#tagName").value = "";
   $("#tagCreateError").textContent = "";
-  $("#tagCreateDialog").showModal();
-  requestAnimationFrame(() => form.elements.name.focus());
+  renderTagManager();
+  $("#tagLibraryDialog").showModal();
+  requestAnimationFrame(() => $("#tagName").focus());
+}
+
+async function createLibraryTag() {
+  const created = await createTag($("#tagName").value);
+  if (!created) return;
+  $("#tagName").value = "";
+  renderTagManager();
+  $("#tagName").focus();
 }
 
 async function createTag(name, errorNode = $("#tagCreateError")) {
@@ -182,11 +190,6 @@ function renderTagManager() {
     }});
     list.append(element("div", { className: "tag-manager-row" }, [input, rename, removeTag]));
   });
-}
-
-function openTagManager() {
-  renderTagManager();
-  $("#manageTagsDialog").showModal();
 }
 
 function renderTags() {
@@ -980,19 +983,12 @@ function bindEvents() {
   $("#restoreInput").onchange = event => event.target.files[0] && importFile(event.target.files[0], true);
   $("#importButton").onclick = () => $("#importInput").click();
   $("#importInput").onchange = event => event.target.files[0] && importFile(event.target.files[0]);
-  $("#manageTags").onclick = openTagManager;
-  $("#newTag").onclick = openTagCreateDialog;
-  $("#tagCreateForm").addEventListener("submit", async event => {
+  $("#newTag").onclick = openTagLibrary;
+  $("#createLibraryTag").onclick = createLibraryTag;
+  $("#tagName").addEventListener("keydown", event => {
+    if (event.key !== "Enter") return;
     event.preventDefault();
-    if (event.submitter?.value === "cancel") {
-      $("#tagCreateDialog").close();
-      return;
-    }
-    const created = await createTag(event.currentTarget.elements.name.value);
-    if (created) {
-      $("#tagCreateDialog").close();
-      showToast("标签已创建。现在可以添加到内容。");
-    }
+    createLibraryTag();
   });
 }
 

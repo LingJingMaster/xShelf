@@ -80,8 +80,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .group-label { margin: 0 10px 7px; }
 .tag-head { display: flex; justify-content: space-between; align-items: center; margin: 21px 10px 7px; }
 .tag-head button { height: 24px; display: inline-grid; place-items: center; padding: 0; color: var(--muted); background: none; border: 0; line-height: 1; }
-.tag-head-actions { display: flex; align-items: center; gap: 8px; }
-.tag-head #manageTags { padding: 0 2px; font-size: 11px; }
 .tag-head #newTag { width: 24px; font-size: 18px; transform: translateY(-1px); }
 .sidebar-foot { margin-top: auto; padding: 18px 7px 0; border-top: 1px solid var(--line); }
 .text-button { display: block; width: 100%; padding: 6px 0; text-align: left; background: none; border: 0; }
